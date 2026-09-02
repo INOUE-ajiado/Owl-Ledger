@@ -37,7 +37,7 @@ const AppLayout = ({ permissions }: AppLayoutProps) => {
             <NotificationBell />
           </div>
         </header>
-        <main className="flex-1 px-3 py-2 overflow-y-auto sm:px-4 sm:py-3 lg:px-6 lg:py-4">
+        <main className="flex-1 overflow-y-auto w-full h-full p-0">
           <Outlet context={{ setHeaderProps, permissions }} />
         </main>
       </div>

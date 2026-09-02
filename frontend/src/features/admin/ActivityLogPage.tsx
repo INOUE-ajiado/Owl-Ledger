@@ -42,13 +42,13 @@ const ActivityLogPage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="p-4 text-sm text-yellow-800 rounded-lg bg-yellow-50">
+    <div className="w-full min-h-full p-4 space-y-4">
+      <div className="p-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 border border-yellow-200">
         <AlertTriangle className="inline w-4 h-4 mr-2" />
         このログはマスターアカウントのみ閲覧可能です。機密情報を含む場合があります。
       </div>
       
-      <div className="overflow-hidden bg-white rounded-lg shadow">
+      <div className="w-full overflow-hidden bg-white/40 backdrop-blur-sm border border-white/20 rounded-lg shadow-sm">
         <ul className="divide-y divide-gray-200">
           {logs.length === 0 ? (
             <p className="p-8 text-center text-gray-500">まだ実行ログはありません。</p>

@@ -580,8 +580,8 @@ const ProjectPage = () => {
     }
 
     return (
-        <div>
-            <div className="overflow-visible glass-panel">
+        <div className="w-full min-h-full">
+            <div className="overflow-x-auto w-full bg-white/40 backdrop-blur-sm border-b border-white/20">
                 <table className="min-w-full divide-y divide-white/20">
                     <thead className="bg-white/10">
                         <tr>

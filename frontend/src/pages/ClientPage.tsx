@@ -50,7 +50,7 @@ const ClientPage = () => {
   };
 
   return (
-    <div>
+    <div className="w-full min-h-full">
       <ClientList onEdit={handleEdit} onDelete={handleDelete} />
       {isModalOpen && canWrite && <ClientForm onClose={() => { setIsModalOpen(false); setEditingClient(null); }} editingClient={editingClient} />}
     </div>

@@ -110,9 +110,9 @@ const PermissionsPage = () => {
   };
 
   return (
-    <div>
-      <div className="p-6 mb-8 bg-white rounded-lg shadow">
-        <h3 className="mb-4 text-lg font-semibold">新規ユーザーを招待</h3>
+    <div className="w-full min-h-full space-y-4">
+      <div className="p-6 bg-white/40 backdrop-blur-sm border-b border-white/20">
+        <h3 className="mb-4 text-lg font-semibold text-earth-800">新規ユーザーを招待</h3>
         <form onSubmit={handleInvite}>
           <div className="flex items-end mb-4 space-x-4">
             <div className="flex-grow">
@@ -126,7 +126,7 @@ const PermissionsPage = () => {
                 placeholder="user@example.com"
               />
             </div>
-            <button type="submit" className="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700">招待</button>
+            <button type="submit" className="px-4 py-2 text-white bg-earth-600 rounded-md hover:bg-earth-700 shadow-md">招待</button>
           </div>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
             {permissionConfig.map(({ id, label }) => (
@@ -147,7 +147,7 @@ const PermissionsPage = () => {
         </form>
       </div>
 
-      <div className="overflow-x-auto bg-white rounded-lg shadow">
+      <div className="w-full overflow-x-auto bg-white/40 backdrop-blur-sm border-y border-white/20">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

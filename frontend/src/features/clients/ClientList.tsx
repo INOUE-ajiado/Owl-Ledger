@@ -30,8 +30,8 @@ const ClientList = ({ onEdit, onDelete }: ClientListProps) => {
   }
 
   return (
-    <div className="bg-white shadow rounded-lg overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
+    <div className="w-full bg-white/40 backdrop-blur-sm border-b border-white/20 overflow-x-auto min-h-full">
+      <table className="min-w-full divide-y divide-gray-200/50">
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">クライアントID</th>

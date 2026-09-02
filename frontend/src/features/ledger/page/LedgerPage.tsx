@@ -106,9 +106,9 @@ const LedgerPage = () => {
   if (loading) return <p className="p-10 text-center text-gray-500">読み込み中...</p>;
 
   return (
-    <div>
+    <div className="w-full min-h-full space-y-4">
       {!isMasterUser && (
-        <div className="flex items-center gap-2 p-3 mb-6 text-xs text-earth-600 border border-white/20 rounded-lg bg-white/20 backdrop-blur-sm">
+        <div className="flex items-center gap-2 p-3 text-xs text-earth-600 border border-white/20 rounded-lg bg-white/20 backdrop-blur-sm">
           <Info size={16} className="flex-shrink-0 text-blue-500" />
           <p>登録した出納帳データは、ご本人と管理者のみが閲覧・管理できます。</p>
         </div>
@@ -125,7 +125,7 @@ const LedgerPage = () => {
         />
       )}
 
-      <div className="glass-panel">
+      <div className="w-full bg-white/40 backdrop-blur-sm border-y border-white/20">
         <LedgerHeaderControls
           currentMonth={currentMonth}
           onChangeMonth={changeMonth}
