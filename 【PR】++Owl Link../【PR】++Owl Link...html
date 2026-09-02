@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>【PR】++Owl Link.. 社内導入提案資料</title>
+  <!-- Google Fonts: Outfit & Noto Sans JP -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #1e1b18 0%, #120f0d 100%);
+      --card-bg: rgba(43, 37, 33, 0.65);
+      --card-border: rgba(147, 123, 105, 0.25);
+      --text-main: #f2ece9;
+      --text-muted: #bfa899;
+      --brand-accent: #d4af37; /* ゴールドアクセント */
+      --brand-brown: #937b69;  /* エスプレッソブラウン */
+      --brand-dark-brown: #5c4d42;
+      --success: #34d399;
+      --danger: #f87171;
+      --transition-speed: 0.4s;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', 'Noto Sans JP', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* フルスクリーンプレゼンテーションコンテナ */
+    .deck-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    /* 各スライドのフルスクリーンベーススタイル */
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      padding: clamp(20px, 3vh, 40px) clamp(20px, 5vw, 80px) clamp(70px, 10vh, 100px) clamp(20px, 5vw, 80px);
+      opacity: 0;
+      transform: translateY(15px) scale(0.99);
+      pointer-events: none;
+      transition: opacity var(--transition-speed) ease,
+                  transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: none;
+      border: none;
+      border-radius: 0;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+      z-index: 10;
+    }
+
+    /* ヘッダー・フッター */
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(147, 123, 105, 0.2);
+      padding-bottom: clamp(6px, 1.2vh, 14px);
+      margin-bottom: clamp(8px, 1.5vh, 16px);
+    }
+
+    .slide-header .brand {
+      font-size: clamp(1.2rem, 2vw, 1.6rem);
+      font-weight: 800;
+      color: var(--brand-accent);
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+    }
+
+    .slide-header .category {
+      font-size: clamp(0.75rem, 1.1vw, 0.9rem);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border: 1px solid rgba(147, 123, 105, 0.3);
+      padding: 4px 14px;
+      border-radius: 20px;
+      background: rgba(147, 123, 105, 0.08);
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow-y: auto;
+      padding: 5px 0;
+    }
+
+    .slide-body h2 {
+      text-align: left;
+    }
+
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(147, 123, 105, 0.2);
+      padding-top: clamp(8px, 1.5vh, 16px);
+      margin-top: clamp(10px, 2vh, 20px);
+      font-size: clamp(0.8rem, 1.1vw, 0.95rem);
+      color: var(--text-muted);
+    }
+
+    /* タイトルとテキスト（動的スケーリング） */
+    h1 {
+      font-size: clamp(2.5rem, 5.5vw, 4.5rem);
+      font-weight: 900;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    h2 {
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 800;
+      color: var(--brand-accent);
+      margin-bottom: clamp(10px, 2vh, 18px);
+    }
+
+    p {
+      font-size: clamp(0.9rem, 1.3vw, 1.15rem);
+      line-height: 1.5;
+      color: var(--text-main);
+    }
+
+    .highlight {
+      color: var(--brand-accent);
+      font-weight: 700;
+    }
+
+    /* レスポンシブレイアウトユーティリティ */
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(16px, 2vw, 32px);
+    }
+
+    /* 特徴カード */
+    .feature-card {
+      background: rgba(92, 77, 66, 0.15);
+      border: 1px solid rgba(147, 123, 105, 0.2);
+      border-radius: 16px;
+      padding: clamp(16px, 2vw, 28px);
+      transition: all 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--brand-accent);
+      background: rgba(92, 77, 66, 0.25);
+    }
+
+    .feature-card .icon-wrapper {
+      margin-bottom: clamp(8px, 1.2vh, 14px);
+      display: inline-block;
+    }
+
+    .feature-card h3 {
+      font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+      font-weight: 700;
+      margin-bottom: clamp(8px, 1vh, 14px);
+      color: var(--text-main);
+    }
+
+    .feature-card p {
+      font-size: clamp(0.85rem, 1.2vw, 1.05rem);
+      color: var(--text-muted);
+    }
+
+    /* 比較表 */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .comparison-table th, .comparison-table td {
+      padding: clamp(8px, 1.5vh, 14px) clamp(8px, 1.2vw, 16px);
+      text-align: center;
+      border-bottom: 1px solid rgba(147, 123, 105, 0.2);
+      font-size: clamp(0.8rem, 1.1vw, 1rem);
+    }
+
+    .comparison-table th {
+      font-weight: 700;
+      color: var(--brand-accent);
+      background: rgba(147, 123, 105, 0.05);
+    }
+
+    .comparison-table td:first-child, .comparison-table th:first-child {
+      text-align: left;
+      font-weight: 700;
+    }
+
+    .comparison-table tr:hover {
+      background: rgba(147, 123, 105, 0.02);
+    }
+
+    .status-check-text {
+      color: var(--success);
+      font-weight: bold;
+    }
+
+    .status-cross-text {
+      color: var(--danger);
+      font-weight: bold;
+    }
+
+    /* CSSバッジコンポーネント */
+    .badge-point {
+      background: var(--brand-accent);
+      color: #120f0d;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-note {
+      background: rgba(147, 123, 105, 0.25);
+      color: var(--text-main);
+      border: 1px solid rgba(147, 123, 105, 0.4);
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-warning {
+      background: rgba(248, 113, 113, 0.15);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* E2EE シンプル3ステップカードUI */
+    .e2ee-simple-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: clamp(16px, 2.5vw, 40px);
+      margin-top: clamp(15px, 2vh, 30px);
+    }
+
+    .e2ee-step-card {
+      background: rgba(43, 37, 33, 0.4);
+      border: 1.5px solid var(--card-border);
+      border-radius: 16px;
+      padding: clamp(16px, 2vw, 30px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(8px, 1.2vh, 16px);
+      text-align: center;
+      position: relative;
+    }
+
+    .e2ee-step-card.accent {
+      border-color: rgba(212, 175, 55, 0.4);
+      background: rgba(212, 175, 55, 0.02);
+    }
+
+    .e2ee-step-num {
+      position: absolute;
+      top: -15px;
+      left: 20px;
+      background: var(--brand-accent);
+      color: #120f0d;
+      font-weight: 900;
+      width: clamp(26px, 2.2vw, 34px);
+      height: clamp(26px, 2.2vw, 34px);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(0.8rem, 1.1vw, 1rem);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .e2ee-step-icon-svg {
+      width: clamp(40px, 4vw, 56px);
+      height: clamp(40px, 4vw, 56px);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .e2ee-step-title {
+      font-size: clamp(1.05rem, 1.5vw, 1.35rem);
+      font-weight: 800;
+      color: var(--brand-accent);
+    }
+
+    .e2ee-step-desc {
+      font-size: clamp(0.85rem, 1.2vw, 1.05rem);
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    .e2ee-step-subdesc {
+      font-size: clamp(0.75rem, 1vw, 0.88rem);
+      color: var(--text-muted);
+      margin-top: 8px;
+      border-top: 1px solid rgba(147, 123, 105, 0.15);
+      padding-top: 10px;
+      width: 100%;
+    }
+
+    /* ステップ間の矢印コネクター */
+    .e2ee-step-card:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: clamp(-16px, -1.8vw, -24px);
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: clamp(1.2rem, 1.8vw, 1.8rem);
+      color: var(--brand-brown);
+      font-weight: 900;
+      z-index: 5;
+    }
+
+    /* スマートに固定配置されたナビゲーションバー */
+    .controls {
+      position: fixed;
+      bottom: clamp(12px, 2vh, 24px);
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: clamp(320px, 85vw, 1100px);
+      z-index: 100;
+      background: rgba(26, 22, 19, 0.85);
+      backdrop-filter: blur(12px);
+      padding: clamp(8px, 1.2vh, 14px) clamp(16px, 2vw, 28px);
+      border-radius: 40px;
+      border: 1.5px solid var(--card-border);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6);
+    }
+
+    .btn-nav {
+      background: transparent;
+      border: 1.5px solid var(--card-border);
+      color: var(--text-muted);
+      padding: clamp(6px, 1vh, 10px) clamp(14px, 1.8vw, 24px);
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: clamp(0.8rem, 1.1vw, 0.95rem);
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .btn-nav:hover:not(:disabled) {
+      border-color: var(--brand-accent);
+      color: var(--brand-accent);
+      background: rgba(212, 175, 55, 0.1);
+    }
+
+    .btn-nav:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .dots {
+      display: flex;
+      gap: clamp(6px, 1vw, 12px);
+    }
+
+    .dot {
+      width: clamp(8px, 0.9vw, 12px);
+      height: clamp(8px, 0.9vw, 12px);
+      background: rgba(147, 123, 105, 0.35);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .dot.active {
+      background: var(--brand-accent);
+      transform: scale(1.25);
+    }
+
+    /* 表紙用の特別デザイン */
+    .title-slide {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: radial-gradient(circle at center, rgba(147, 123, 105, 0.2) 0%, transparent 75%), var(--card-bg);
+    }
+
+    .title-slide h1 {
+      font-size: clamp(3rem, 6vw, 4.8rem);
+      letter-spacing: 0.02em;
+      margin-bottom: 12px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .title-slide h1 span.accent-symbol {
+      color: var(--brand-accent);
+    }
+
+    .title-slide p {
+      font-size: clamp(1.1rem, 2vw, 1.6rem);
+      color: var(--text-muted);
+      margin-bottom: clamp(20px, 4vh, 40px);
+      font-weight: 300;
+    }
+
+    .title-slide .badge-group {
+      display: flex;
+      gap: clamp(10px, 1.5vw, 20px);
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: clamp(20px, 4vh, 40px);
+    }
+
+    .title-slide .badge {
+      border: 1px solid var(--brand-brown);
+      padding: clamp(4px, 0.8vh, 8px) clamp(12px, 1.5vw, 20px);
+      border-radius: 20px;
+      font-size: clamp(0.8rem, 1.1vw, 1rem);
+      color: var(--text-main);
+      background: rgba(147, 123, 105, 0.12);
+    }
+
+    /* スライド個別のレイアウト調整 */
+    .bullet-list {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(8px, 1.2vh, 16px);
+    }
+
+    .bullet-item {
+      display: flex;
+      align-items: flex-start;
+      gap: clamp(10px, 1.2vw, 16px);
+    }
+
+    .bullet-icon {
+      background: rgba(212, 175, 55, 0.1);
+      border: 1.5px solid var(--brand-accent);
+      color: var(--brand-accent);
+      width: clamp(22px, 1.8vw, 28px);
+      height: clamp(22px, 1.8vw, 28px);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+      margin-top: 2px;
+      font-size: clamp(0.8rem, 1vw, 0.95rem);
+    }
+
+    .bullet-content h4 {
+      font-size: clamp(0.98rem, 1.3vw, 1.18rem);
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 2px;
+    }
+
+    .bullet-content p {
+      font-size: clamp(0.85rem, 1.1vw, 1rem);
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    /* SVGアイコン */
+    .svg-icon {
+      fill: none;
+      stroke: var(--brand-accent);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      width: clamp(36px, 3.5vw, 52px);
+      height: clamp(36px, 3.5vw, 52px);
+    }
+
+    /* ロゴ画像用スタイル */
+    .brand-logo-img {
+      object-fit: contain;
+    }
+
+    /* 技術解説用UIモック枠 */
+    .tech-ui-mock {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: clamp(10px, 1.5vw, 18px);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(6px, 1vh, 10px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+
+    .tech-ui-mock .header-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: clamp(0.75rem, 1vw, 0.88rem);
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(147, 123, 105, 0.15);
+      padding-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .tech-ui-mock .flow-node {
+      border: 1px solid var(--brand-brown);
+      background: rgba(147, 123, 105, 0.08);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: clamp(0.8rem, 1.1vw, 0.95rem);
+      text-align: center;
+    }
+
+    /* 縦並びコンテナクラス */
+    .vertical-layout-container {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(10px, 1.6vh, 20px);
+      flex: 1;
+      justify-content: center;
+    }
+
+    /* メディアクエリ */
+    @media (max-width: 900px) {
+      .grid-3, .e2ee-simple-container {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .e2ee-step-card:not(:last-child)::after {
+        content: "↓";
+        right: 50%;
+        top: auto;
+        bottom: -22px;
+        transform: translateX(50%);
+      }
+    }
+
+    @media (max-height: 700px) {
+      .slide {
+        padding-top: 15px;
+        padding-bottom: 65px;
+      }
+      h2 {
+        margin-bottom: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- プレゼンテーションデッキ -->
+  <div class="deck-container">
+
+    <!-- スライド1: 表紙 -->
+    <div class="slide title-slide active" id="slide-1">
+      <div class="slide-header" style="border:none; margin:0; padding:0; width:100%; justify-content:center;">
+        <span class="category">社内導入提案資料</span>
+      </div>
+      <div class="slide-body">
+        <div style="display: flex; justify-content: center; margin-bottom: clamp(12px, 2.5vh, 24px);">
+          <!-- 指定のフクロウロゴ画像を参照 -->
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="++Owl Link.." style="width: clamp(80px, 9vw, 130px); height: clamp(80px, 9vw, 130px);">
+        </div>
+        <h1>
+          <span class="accent-symbol">++</span>Owl Link<span class="accent-symbol">..</span>
+        </h1>
+        <p style="margin-top: 12px;">Web暗号化技術を活用した安全なファイル転送ソリューション</p>
+        <div class="badge-group">
+          <span class="badge">E2EE (End-to-End暗号化)</span>
+          <span class="badge">ゼロナレッジ（完全機密設計）</span>
+          <span class="badge">ISO/IEC 27001 適合要件対応</span>
+        </div>
+      </div>
+      <div class="slide-footer" style="border:none; margin:0; padding:0; width:100%; justify-content:center;">
+        <span>© 2026 ++Owl Link.. Project</span>
+      </div>
+    </div>
+
+    <!-- スライド2: 現状の課題とシャドーITリスク (縦並びレイアウトへ変更) -->
+    <div class="slide" id="slide-2">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Background & Issues</span>
+      </div>
+      <div class="slide-body">
+        <h2>一般的なファイル転送サービスにおけるセキュリティ課題</h2>
+        <div class="vertical-layout-container">
+          <div class="bullet-list">
+            <div class="bullet-item">
+              <div class="bullet-icon" style="border-color:var(--danger); color:var(--danger); background:rgba(248,113,113,0.1)">!</div>
+              <div class="bullet-content">
+                <h4>誤クリックを誘発する広告表示のリスク</h4>
+                <p>無料の一般サービスには多くの派手な広告が配置されており、サポート詐欺画面や不正サイトへの誘導、あるいはマルウェア感染のリスクが常につきまといます。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon" style="border-color:var(--danger); color:var(--danger); background:rgba(248,113,113,0.1)">!</div>
+              <div class="bullet-content">
+                <h4>クラウド事業者側でのデータ閲覧リスク</h4>
+                <p>多くの共有サービスはサーバー側でファイル内容を復号可能な状態で保存しています。インサイダーや事業者側のセキュリティ障害によるデータ漏洩リスクが存在します。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon" style="border-color:var(--danger); color:var(--danger); background:rgba(248,113,113,0.1)">!</div>
+              <div class="bullet-content">
+                <h4>アクセス履歴（監査ログ）の追跡困難</h4>
+                <p>「誰がいつ誰に向けて送信し、いつ誰がダウンロードしたか」を社内で網羅的に監査・追跡できないため、万が一漏洩が発生した際の状況把握や原因究明が不可能です。</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- テキスト下部に広幅配置する警告バナー -->
+          <div style="background:rgba(248,113,113,0.06); padding:14px 24px; border-radius:12px; border:1px solid rgba(248,113,113,0.25); display:flex; align-items:center; justify-content:center; gap:20px; width:100%;">
+            <svg class="svg-icon" viewBox="0 0 24 24" style="width: 48px; height: 48px; stroke: var(--danger); flex-shrink:0;">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <p style="font-weight:700; color:var(--danger); font-size:1.05rem; line-height: 1.5; margin:0;">
+              企業のビジネス情報を安全に受け渡すには、<br>アクセスログ管理とデータ暗号化の統制が不可欠です。
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>情報資産保護における自社管理の重要性</span>
+      </div>
+    </div>
+
+    <!-- スライド3: ++Owl Link.. が選ばれる理由とメリット -->
+    <div class="slide" id="slide-3">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Why Owl Link</span>
+      </div>
+      <div class="slide-body">
+        <h2>安全な運用と管理統制を両立する自社構築型システム</h2>
+        <div class="grid-3">
+          <div class="feature-card">
+            <div class="icon-wrapper">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <h3>ブラウザ完結型E2EE</h3>
+            <p>ブラウザ上で暗号化を実行して送信するため、保管先クラウドの管理者でもファイルを復号できません。暗号鍵（パスワード）を知る送信者と受信者間でのみ復号可能です。</p>
+          </div>
+          
+          <div class="feature-card">
+            <div class="icon-wrapper">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <h3>広告フリー & 安全なUI</h3>
+            <p>一切の外部広告を排除した自社ドメイン運用により、利用者が偽の警告リンクをクリックして詐欺に遭うリスクを根絶。安全かつシンプルな操作画面を提供します。</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="icon-wrapper">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <h3>詳細な監査ログ記録</h3>
+            <p>アップロードの開始・完了、および第三者によるダウンロード履歴をIPアドレスやブラウザ環境（User-Agent）とともに時系列で詳細に記録・保持します。</p>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>自社管理によるガバナンス強化と安心感</span>
+      </div>
+    </div>
+
+    <!-- スライド4: Owl Link の安全性の仕組み (E2EE) -->
+    <div class="slide" id="slide-4">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Security Architecture</span>
+      </div>
+      <div class="slide-body">
+        <h2>ブラウザ完結型 End-to-End 暗号化 (E2EE) の流れ</h2>
+        <div style="margin-bottom:10px;">
+          <p>暗号化処理はすべて送信者の端末（ブラウザ）で行われ、中継サーバーは中身を見ることができません。受信者は、データと「鍵」を受け取ることで安全に元のファイルに復元できます。</p>
+        </div>
+        
+        <div class="e2ee-simple-container">
+          <!-- 1. 送信者 -->
+          <div class="e2ee-step-card">
+            <div class="e2ee-step-num">1</div>
+            <div class="e2ee-step-icon-svg">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <rect x="12" y="12" width="8" height="6" rx="1"/>
+              </svg>
+            </div>
+            <div class="e2ee-step-title">送信元ブラウザで暗号化</div>
+            <div class="e2ee-step-desc">
+              ファイルを選択すると、送信者のブラウザ上で自動的に暗号化（ロック処理）が実行されます。
+            </div>
+            <div class="e2ee-step-subdesc">
+              この時点でデータは意味を持たない暗号に変わります。
+            </div>
+          </div>
+
+          <!-- 2. 中継サーバー -->
+          <div class="e2ee-step-card accent">
+            <div class="e2ee-step-num">2</div>
+            <div class="e2ee-step-icon-svg">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+              </svg>
+            </div>
+            <div class="e2ee-step-title">中継サーバーに一時保管</div>
+            <div class="e2ee-step-desc">
+              暗号化されたファイル（データ）のみが中継サーバーに送られて保管されます。
+            </div>
+            <div class="e2ee-step-subdesc" style="color: var(--danger); font-weight:700;">
+              <span class="badge-warning">SECURE</span> サーバーは「鍵」を持たないため、中身を一切閲覧できません。
+            </div>
+          </div>
+
+          <!-- 3. 受信者 -->
+          <div class="e2ee-step-card">
+            <div class="e2ee-step-num">3</div>
+            <div class="e2ee-step-icon-svg">
+              <svg class="svg-icon" viewBox="0 0 24 24">
+                <path d="M21 2l-2 2m-2-2l2 2M3 11a7 7 0 0 1 11.95-4.95L21 12l-2.5 2.5"/>
+              </svg>
+            </div>
+            <div class="e2ee-step-title">受信先で安全に復号</div>
+            <div class="e2ee-step-desc">
+              受信者は、共有されたダウンロードURLにアクセスし、復号パスワード（鍵）を入力します。
+            </div>
+            <div class="e2ee-step-subdesc">
+              受信者ブラウザでロックが解除され、元のファイルが展開されます。
+            </div>
+          </div>
+        </div>
+
+        <!-- 下部の補足情報 -->
+        <div style="margin-top:clamp(15px, 2.5vh, 30px); display:flex; justify-content:space-between; align-items:center; background:rgba(147, 123, 105, 0.08); padding:clamp(8px, 1.2vh, 14px) clamp(12px, 1.5vw, 20px); border-radius:8px; border: 1px solid var(--card-border);">
+          <span style="font-size: clamp(0.75rem, 1.1vw, 0.9rem); color:var(--brand-accent); font-weight:700; display:flex; align-items:center; gap:6px;">
+            <span class="badge-point">POINT</span> 今回の仕組みの要点
+          </span>
+          <span style="font-size: clamp(0.75rem, 1.1vw, 0.9rem); text-align:right; flex: 1; margin-left: 20px;">
+            ファイル実体は中継サーバーに暗号化（ロック）された状態で送られますが、そのロックを解く **「復号パスワード（鍵）」** はサーバーに送信されません。送信者と受信者の間だけで共有されるため、サーバー側で盗み見られる心配はありません。
+          </span>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>復号鍵の非送信による完全なエンドツーエンド機密性</span>
+      </div>
+    </div>
+
+    <!-- スライド5: 技術的こだわり① サーバーサイドでの厳密な管理者認可 (縦並びレイアウトへ変更) -->
+    <div class="slide" id="slide-5">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Technical Detail 1</span>
+      </div>
+      <div class="slide-body">
+        <h2>技術的こだわり① サーバーサイドでの厳密な管理者認可</h2>
+        <div class="vertical-layout-container">
+          <div class="bullet-list">
+            <div class="bullet-item">
+              <div class="bullet-icon">1</div>
+              <div class="bullet-content">
+                <h4>フロントのみの表示制限に頼らない設計</h4>
+                <p>一般のWebシステムでありがちな「画面上で非表示にするだけ」の制限は、URLを知る悪意あるユーザーにバイパスされます。本システムはこれを根本的に防ぎます。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">2</div>
+              <div class="bullet-content">
+                <h4>Goバックエンドによる毎リクエスト検証</h4>
+                <p>管理用APIがリクエストを受信するたびに、ログイン中のメールアドレスを照会。Firestoreの `admins` コレクションに登録された実在の特権レコードと直接突き合わせます。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">3</div>
+              <div class="bullet-content">
+                <h4>なりすましや不正コールの完全防止</h4>
+                <p>URLの直入力やAPIデバッグツールによる悪意あるパラメータ書き換えに対しても、サーバー側で認可エラー（403 Forbidden）を即時に返却し、重要なログデータを保護します。</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- テキスト下部に広幅配置するモック図 -->
+          <div class="tech-ui-mock" style="width:100%;">
+            <div class="header-bar">
+              <span>管理者ログ要求検知フロー</span>
+              <span style="color:var(--brand-accent);">Go Backend & Firestore Shield</span>
+            </div>
+            <div style="display:flex; gap:15px; align-items:center; justify-content:space-between; margin:4px 0;">
+              <div class="flow-node" style="border-color:var(--brand-accent); flex:1; font-weight:700;">
+                GET /api/admin/logs?email=...
+              </div>
+              <div style="font-size:0.9rem; color:var(--brand-accent); flex-shrink:0; font-weight:bold;">→ (二重チェック) →</div>
+              <div class="flow-node" style="background: rgba(52, 211, 153, 0.08); border-color: var(--success); font-size:0.88rem; flex:1.8; text-align:left; padding:8px 14px;">
+                Firestore「admins」コレクションの管理者リストに存在するかを完全突き合わせ
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; gap:15px; font-size:0.8rem; margin-top:2px;">
+              <span style="background:rgba(52, 211, 153, 0.2); color:var(--success); padding:5px 12px; border-radius:6px; flex:1; text-align:center; font-weight:700;">許可 → ログ返却 (200 OK)</span>
+              <span style="background:rgba(248, 113, 113, 0.2); color:var(--danger); padding:5px 12px; border-radius:6px; flex:1; text-align:center; font-weight:700;">否決 → アクセス拒否 (403 Forbidden)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>権限・アクセス制御をサーバー側で一元管理する堅牢性</span>
+      </div>
+    </div>
+
+    <!-- スライド6: 技術的こだわり② ISMS（ISO/IEC 27001）適合の監査ログ要件 (縦並びレイアウトへ変更) -->
+    <div class="slide" id="slide-6">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Technical Detail 2</span>
+      </div>
+      <div class="slide-body">
+        <h2>技術的こだわり② ISMS準拠の監査証跡 (5W1H) を自動記録</h2>
+        <div class="vertical-layout-container">
+          <div class="bullet-list">
+            <div class="bullet-item">
+              <div class="bullet-icon">1</div>
+              <div class="bullet-content">
+                <h4>監査に必要な「送信者」と「宛先」の明文化</h4>
+                <p>情報漏洩の事後調査において「誰が誰宛てに送ったか」は最も重要です。本システムでは、全アップロードとダウンロード要求に紐付けて送信者・宛先名を正確に記録します。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">2</div>
+              <div class="bullet-content">
+                <h4>接続元IPアドレスとUser-Agentの隠蔽防止</h4>
+                <p>クライアントの生の接続元IPと使用OS/ブラウザ情報をサーバーサイドで抽出し、なりすまし接続の看破や、流出調査時の利用端末特定に役立てます。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">3</div>
+              <div class="bullet-content">
+                <h4>Firestoreへの変更不可な証跡格納</h4>
+                <p>一度格納されたログは変更・改ざんできないレコードとして時系列（Firestoreのタイムスタンプ）で安全に追跡テーブルに蓄積され、ISMS規格の監査基準をクリアします。</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- テキスト下部に広幅配置する5W1H表 -->
+          <div class="tech-ui-mock" style="width:100%;">
+            <div class="header-bar">
+              <span>収集・蓄積される監査証跡の項目一覧</span>
+              <span style="color:var(--success);">ISO/IEC 27001 適合仕様</span>
+            </div>
+            <table style="width:100%; font-size:0.82rem; border-collapse:collapse; color:var(--text-main); margin-top:2px;">
+              <thead>
+                <tr style="border-bottom:1.5px solid rgba(147,123,105,0.3); text-align:left;">
+                  <th style="padding:4px 8px; color:var(--brand-accent); width:18%;">5W1H 区分</th>
+                  <th style="padding:4px 8px; color:var(--brand-accent); width:32%;">記録データフィールド</th>
+                  <th style="padding:4px 8px; color:var(--brand-accent);">監査・セキュリティ上の効能</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom:1px solid rgba(147,123,105,0.15);">
+                  <td style="padding:5px 8px; font-weight:bold; color:var(--brand-accent);">Who (誰が)</td>
+                  <td style="padding:5px 8px; font-family:monospace;">senderInfo (送信者メールアドレス)</td>
+                  <td style="padding:5px 8px; color:var(--text-muted);">操作を実行したログインユーザーを特定</td>
+                </tr>
+                <tr style="border-bottom:1px solid rgba(147,123,105,0.15);">
+                  <td style="padding:5px 8px; font-weight:bold; color:var(--brand-accent);">Whom (誰に)</td>
+                  <td style="padding:5px 8px; font-family:monospace;">receiverInfo (宛先アドレス/氏名)</td>
+                  <td style="padding:5px 8px; color:var(--text-muted);">データの正確な送付対象者・送付先を追跡</td>
+                </tr>
+                <tr style="border-bottom:1px solid rgba(147,123,105,0.15);">
+                  <td style="padding:5px 8px; font-weight:bold; color:var(--brand-accent);">When (いつ)</td>
+                  <td style="padding:5px 8px; font-family:monospace;">timestamp (Firestore精密刻印)</td>
+                  <td style="padding:5px 8px; color:var(--text-muted);">改ざん不能な時系列でタイムラインを固定</td>
+                </tr>
+                <tr style="border-bottom:1px solid rgba(147,123,105,0.15);">
+                  <td style="padding:5px 8px; font-weight:bold; color:var(--brand-accent);">Where (どこから)</td>
+                  <td style="padding:5px 8px; font-family:monospace;">clientIP / userAgent (端末環境)</td>
+                  <td style="padding:5px 8px; color:var(--text-muted);">接続元IPおよび利用OS・ブラウザを隠蔽させず記録</td>
+                </tr>
+                <tr>
+                  <td style="padding:5px 8px; font-weight:bold; color:var(--brand-accent);">How (成否)</td>
+                  <td style="padding:5px 8px; font-family:monospace;">action (upload_init / download_request)</td>
+                  <td style="padding:5px 8px; color:var(--text-muted);">ファイルのアップロード／ダウンロード等の動作種別</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>第三者監査にも対応可能な詳細度と完全な追跡性</span>
+      </div>
+    </div>
+
+    <!-- スライド7: 技術的こだわり③ 誤送信防止のためのドメイン検証 (縦並びレイアウトへ変更) -->
+    <div class="slide" id="slide-7">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Technical Detail 3</span>
+      </div>
+      <div class="slide-body">
+        <h2>技術的こだわり③ 誤送信を未然に防ぐドメインバリデーション</h2>
+        <div class="vertical-layout-container">
+          <div class="bullet-list">
+            <div class="bullet-item">
+              <div class="bullet-icon">1</div>
+              <div class="bullet-content">
+                <h4>誤入力の段階での送信ロック処理</h4>
+                <p>「自動送信」モードでは、送信先アドレスの形式に誤りがある場合、UIのプログラム制御によって送信ボタンそのものが非活性化（グレーアウト）され、押せなくなります。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">2</div>
+              <div class="bullet-content">
+                <h4>正規表現を用いたメール形式の厳密チェック</h4>
+                <p>アドレスの文字列内にアットマーク（`@`）が存在し、かつドメイン名部分が正しく組み立てられているかをAngularの正規表現バリデータでリアルタイム監視します。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">3</div>
+              <div class="bullet-content">
+                <h4>人的ミスのシステム的な排除</h4>
+                <p>「急いでいて宛先メールアドレスの後半を打ち間違えたまま送信ボタンを押してしまった」といった、実務で発生しがちなケアレスミスを仕組みで強制的に防止します。</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- テキスト下部に左右並びで横幅広く表示するフォームバリデーション枠 -->
+          <div class="tech-ui-mock" style="width:100%;">
+            <div class="header-bar">
+              <span>リアルタイム送信フォーム制御の動作イメージ</span>
+              <span>Front-End Validation</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:4px;">
+              <!-- 不正状態 -->
+              <div style="background:rgba(248,113,113,0.06); padding:10px 14px; border-radius:8px; border:1px solid rgba(248,113,113,0.25);">
+                <span style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:2px;">宛先メールアドレス (入力中)</span>
+                <span style="font-size:0.9rem; font-family:monospace; color:var(--danger); font-weight:bold;">test-address@invalid-domain</span>
+                <span style="font-size:0.75rem; color:var(--danger); display:block; margin-top:2px;">⚠️ メールの形式が正しくありません</span>
+                <button disabled style="margin-top:8px; background:#4a3f3a; color:#8c7e77; border:none; padding:6px 12px; border-radius:6px; font-size:0.8rem; width:100%; cursor:not-allowed; font-weight:bold;">
+                  送信する（プログラム制御によりロック中）
+                </button>
+              </div>
+              <!-- 正常状態 -->
+              <div style="background:rgba(52, 211, 153, 0.06); padding:10px 14px; border-radius:8px; border:1px solid rgba(52,211,153,0.25);">
+                <span style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:2px;">宛先メールアドレス (適正)</span>
+                <span style="font-size:0.9rem; font-family:monospace; color:var(--success); font-weight:bold;">partner@ajiado.co.jp</span>
+                <span style="font-size:0.75rem; color:var(--success); display:block; margin-top:2px;">✓ 送信可能なアドレス形式です</span>
+                <button style="margin-top:8px; background:var(--brand-accent); color:#120f0d; font-weight:800; border:none; padding:6px 12px; border-radius:6px; font-size:0.8rem; width:100%; cursor:pointer;">
+                  送信する（アクティブ状態）
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>誤操作リスクをプログラムレベルで完全にシャットアウト</span>
+      </div>
+    </div>
+
+    <!-- スライド8: 技術的こだわり④ 手動共有時の「宛先名」入力と追跡性 (縦並びレイアウトへ変更) -->
+    <div class="slide" id="slide-8">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Technical Detail 4</span>
+      </div>
+      <div class="slide-body">
+        <h2>技術的こだわり④ 手動共有時の「宛先名」入力による追跡</h2>
+        <div class="vertical-layout-container">
+          <div class="bullet-list">
+            <div class="bullet-item">
+              <div class="bullet-icon">1</div>
+              <div class="bullet-content">
+                <h4>手動共有（チャット送信など）での盲点の解消</h4>
+                <p>メールを送らずダウンロードリンクだけを取得してチャット等で共有する「手動送信」では、一般的にログ上で宛先が「匿名」になってしまい、追跡性が失われます。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">2</div>
+              <div class="bullet-content">
+                <h4>「宛先メールアドレスまたは宛先名」の入力必須化</h4>
+                <p>手動共有であっても、宛先の会社名や担当者名（例: 「〇〇株式会社 鈴木様」）の入力を必須化することで、ログデータ内に送付対象者の名前が確実に記録されます。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">3</div>
+              <div class="bullet-content">
+                <h4>利便性を損なわずセキュリティ監査を維持</h4>
+                <p>これにより、日常の連絡手段（Teams、Slack等）を通じた柔軟なやり取りに対応しながら、「誰にそのファイルを渡したか」をあとから漏れなく監査・追跡できます。</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- テキスト下部に広幅配置する手動送信フロー図 -->
+          <div class="tech-ui-mock" style="width:100%;">
+            <div class="header-bar">
+              <span>手動共有における監査ログ自動生成フロー</span>
+              <span>Manual Sharing Audit Flow</span>
+            </div>
+            <div style="display:flex; gap:15px; align-items:center; justify-content:space-between; margin:4px 0;">
+              <div style="font-size:0.8rem; background:rgba(147,123,105,0.12); padding:8px 12px; border-radius:8px; border:1px solid rgba(147,123,105,0.25); flex:1;">
+                <span style="color:var(--text-muted); display:block; font-size:0.72rem; margin-bottom:2px;">① 宛先名（必須）の入力</span>
+                <strong style="color:var(--brand-accent);">「〇〇株式会社 鈴木部長様」</strong>
+              </div>
+              <div style="font-size:0.85rem; color:var(--brand-accent); font-weight:bold; flex-shrink:0;">→ (システム自動保存) →</div>
+              <div style="font-size:0.75rem; font-family:monospace; background:rgba(0,0,0,0.4); padding:8px 12px; border-radius:8px; border:1px solid rgba(147,123,105,0.2); flex:1.8; line-height:1.4; color:#a7f3d0;">
+                [FIRESTORE AUDIT LOG]<br>
+                ACTION: download_request &nbsp;|&nbsp; TARGET: 〇〇株式会社 鈴木部長様<br>
+                CLIENT_IP: xxx.xxx.xxx.xxx &nbsp;|&nbsp; UA: Chrome / macOS
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>チャット連携等の柔軟な運用と情報追跡のハイブリッド両立</span>
+      </div>
+    </div>
+
+    <!-- スライド9: 技術的こだわり⑤ サーバーレス・ステートレス設計 (縦並びレイアウトへ変更) -->
+    <div class="slide" id="slide-9">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Technical Detail 5</span>
+      </div>
+      <div class="slide-body">
+        <h2>技術的こだわり⑤ セキュアなサーバーレス・ステートレス設計</h2>
+        <div class="vertical-layout-container">
+          <div class="bullet-list">
+            <div class="bullet-item">
+              <div class="bullet-icon">1</div>
+              <div class="bullet-content">
+                <h4>セッション情報の不保持によるリスク根絶</h4>
+                <p>サーバー側にユーザーのログインセッションやCookieデータを保持しない「ステートレス設計」を採用。セッションハイジャック（なりすまし）攻撃を技術的に無効化しています。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">2</div>
+              <div class="bullet-content">
+                <h4>Google Cloudネイティブな高信頼実行環境</h4>
+                <p>Goサーバーを「Cloud Run」、データを「Firestore/Cloud Storage」で運用。サーバーの脆弱性管理やOSアップデートはGoogle側で自動処理され、高い信頼性を保ちます。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">3</div>
+              <div class="bullet-content">
+                <h4>アカウント課金なし・インフラ実費のみの超低コスト</h4>
+                <p>無駄な常時起動サーバーがないため、使用された通信量と容量に応じた「完全従量課金」。アカウントを何名増やしても料金が変わらない自社構築ならではの大きな経済性です。</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- テキスト下部に広幅配置するステートレス構成図 -->
+          <div class="tech-ui-mock" style="width:100%; align-items:center; text-align:center;">
+            <div class="header-bar" style="width:100%;">
+              <span>セキュア・ステートレス構成図</span>
+              <span>Google Cloud Platform Native</span>
+            </div>
+            <div style="font-size: 0.85rem; display:flex; gap:20px; align-items:center; justify-content:center; margin:6px 0; width:100%;">
+              <div style="border:1px solid var(--brand-brown); padding:8px 16px; border-radius:8px; background:rgba(0,0,0,0.3); font-weight:bold; flex:1;">ユーザー端末 (ブラウザ)</div>
+              <span style="color:var(--brand-accent); font-weight:bold; font-size:1.1rem;">⇌</span>
+              <div style="border:1.5px solid var(--brand-accent); padding:8px 16px; border-radius:8px; background:rgba(212,175,55,0.08); font-weight:800; color:var(--brand-accent); flex:1.2;">Cloud Run (Go言語)</div>
+              <span style="color:var(--brand-accent); font-weight:bold; font-size:1.1rem;">⇌</span>
+              <div style="border:1px solid var(--brand-brown); padding:8px 16px; border-radius:8px; background:rgba(0,0,0,0.3); font-weight:bold; flex:1;">Firestore / Storage</div>
+            </div>
+            <div style="font-size:0.78rem; color:var(--text-muted); border-top: 1px dashed rgba(147,123,105,0.25); padding-top:6px; width:100%;">
+              <span class="badge-note">NOTE</span> 常時稼働のセッション管理サーバーが存在しないため、セッション乗っ取りリスクやOSパッチ当てなどの保守コストが完全ゼロ化。
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>堅牢なインフラ構成とシステム管理コストの極小化</span>
+      </div>
+    </div>
+
+    <!-- スライド10: Firebase / Google Cloud 基盤の堅牢な安全性 (縦並びレイアウトへ変更) -->
+    <div class="slide" id="slide-10">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Infrastructure Security</span>
+      </div>
+      <div class="slide-body">
+        <h2>Firebase / Google Cloud 基盤の堅牢な安全性</h2>
+        <div class="vertical-layout-container">
+          <div class="bullet-list">
+            <div class="bullet-item">
+              <div class="bullet-icon">1</div>
+              <div class="bullet-content">
+                <h4>世界最高峰のGoogleデータセンター基盤</h4>
+                <p>ISO/IEC 27001, SOC 1/2/3, PCI DSS等の国際的認定を取得済みのGoogle Cloud上で動作。世界レベルの物理セキュリティとDDoS攻撃耐性を備えています。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">2</div>
+              <div class="bullet-content">
+                <h4>通信時＆保管時の全自動AES-256暗号化</h4>
+                <p>ネットワーク通信時のTLS/HTTPS保護はもちろん、Google Cloud StorageおよびFirestore上に保管されるデータも、デフォルトで常時AES-256暗号化されます。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">3</div>
+              <div class="bullet-content">
+                <h4>Firebase Security Rulesによる多層防御</h4>
+                <p>データベース層でアクセス制限ルールを配置し、認証されていない第三者からの未許可リクエストを自動遮断。アプリ層との二重防御を実現しています。</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- テキスト下部に広幅配置するSecurity Rulesモック -->
+          <div class="tech-ui-mock" style="width:100%;">
+            <div class="header-bar">
+              <span>Firebase Security Rules (データベース層のアクセス制限コード)</span>
+              <span style="color:var(--success);">Google Cloud Validated</span>
+            </div>
+            <div style="display:flex; gap:20px; align-items:center; justify-content:space-between; margin:2px 0;">
+              <div style="font-size:0.75rem; font-family:monospace; background:rgba(0,0,0,0.5); padding:10px 14px; border-radius:8px; border:1px solid rgba(147,123,105,0.2); color:#a7f3d0; line-height:1.35; flex:1.5;">
+                rules_version = '2';<br>
+                service cloud.firestore {<br>
+                &nbsp;&nbsp;match /databases/{db}/documents {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;match /transfers/{id} { allow read, write: if request.auth != null; }<br>
+                &nbsp;&nbsp;}<br>
+                }
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+                <span style="font-size:0.78rem; border:1px solid var(--success); color:var(--success); padding:6px 12px; border-radius:6px; text-align:center; font-weight:700; background:rgba(52,211,153,0.06);">
+                  ISO/IEC 27001 認証適合基盤
+                </span>
+                <span style="font-size:0.78rem; border:1px solid var(--brand-accent); color:var(--brand-accent); padding:6px 12px; border-radius:6px; text-align:center; font-weight:700; background:rgba(212,175,55,0.06);">
+                  AES-256 全自動データ保管暗号化
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>Googleのグローバルセキュリティ基準に守られた安心のクラウド環境</span>
+      </div>
+    </div>
+
+    <!-- 新スライド11: 2GB大容量ファイル転送の実測検証データ＆動画 (縦並び表示・高さ拡大) -->
+    <div class="slide" id="slide-11">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Performance Test</span>
+      </div>
+      <div class="slide-body">
+        <h2>2GB大容量ファイル転送の実測検証データ＆操作映像</h2>
+        <div style="display:flex; gap:20px; align-items:center; margin-bottom:12px; background:rgba(212,175,55,0.06); padding:10px 20px; border-radius:12px; border:1px solid var(--card-border);">
+          <div style="flex:1; text-align:center; border-right:1px solid rgba(147,123,105,0.2);">
+            <span style="font-size:0.8rem; color:var(--text-muted); display:block;">検証ファイルサイズ</span>
+            <strong style="font-size:1.3rem; color:var(--brand-accent);">2.0 GB (2,048 MB)</strong>
+          </div>
+          <div style="flex:1; text-align:center; border-right:1px solid rgba(147,123,105,0.2);">
+            <span style="font-size:0.8rem; color:var(--text-muted); display:block;">暗号化 ＋ アップロード時間</span>
+            <strong style="font-size:1.5rem; color:var(--success);">56.37 秒</strong>
+          </div>
+          <div style="flex:1; text-align:center;">
+            <span style="font-size:0.8rem; color:var(--text-muted); display:block;">ダウンロード ＋ 復号時間</span>
+            <strong style="font-size:1.5rem; color:var(--success);">58.26 秒</strong>
+          </div>
+        </div>
+
+        <!-- 高さを大きく拡大した上下配置プレイヤー -->
+        <div style="display:flex; flex-direction:column; gap:14px; flex:1; justify-content:center;">
+          <!-- アップロード -->
+          <div style="background:rgba(0,0,0,0.35); padding:12px 16px; border-radius:12px; border:1px solid var(--card-border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="badge-point">UPLOAD</span>
+                <span style="font-size:0.95rem; font-weight:700; color:var(--text-main);">アップロード検証映像</span>
+              </div>
+              <span style="font-size:0.85rem; color:var(--success); font-weight:bold;">暗号化処理含む: 56.37秒</span>
+            </div>
+            <video controls src="OwlLink_upload.mp4" style="width:100%; max-height:230px; border-radius:8px; border:1px solid rgba(147,123,105,0.3); object-fit:contain; background:#000; display:block; margin:0 auto;"></video>
+          </div>
+
+          <!-- ダウンロード -->
+          <div style="background:rgba(0,0,0,0.35); padding:12px 16px; border-radius:12px; border:1px solid var(--card-border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="badge-point" style="background:var(--success); color:#120f0d;">DOWNLOAD</span>
+                <span style="font-size:0.95rem; font-weight:700; color:var(--text-main);">ダウンロード検証映像</span>
+              </div>
+              <span style="font-size:0.85rem; color:var(--success); font-weight:bold;">復号処理含む: 58.26秒</span>
+            </div>
+            <video controls src="OwlLink_download.mp4" style="width:100%; max-height:230px; border-radius:8px; border:1px solid rgba(147,123,105,0.3); object-fit:contain; background:#000; display:block; margin:0 auto;"></video>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>実効光回線環境における圧倒的な転送スピードの実証データ</span>
+      </div>
+    </div>
+
+    <!-- スライド12: 利用人数・データ使用量別の月額コスト比較（最大容量対応版） -->
+    <div class="slide" id="slide-12">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Cost Simulation (Max Capacity)</span>
+      </div>
+      <div class="slide-body">
+        <h2>最大容量（1ファイル最大5TB）対応・月額コスト比較</h2>
+        <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+          <p style="font-size:0.95rem;">1ファイルあたり<strong style="color:var(--brand-accent);">最大 5,000,000 MB (5 TB)</strong>の巨大ファイル伝送に対応。アカウントID課金ゼロの完全実費運用です。</p>
+          <span style="background:rgba(52,211,153,0.15); border:1px solid var(--success); color:var(--success); padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:bold;">1ファイル上限: 5 TB</span>
+        </div>
+        
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>想定運用規模</th>
+              <th>利用人数</th>
+              <th>月間データ使用量 (MB / GB / TB)</th>
+              <th style="color: var(--brand-accent); background: rgba(212,175,55,0.08);">++Owl Link.. (クラウド実費)</th>
+              <th>他社有償共有ツール (ID課金)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>小規模チーム</td>
+              <td><strong>10名</strong></td>
+              <td>10,000 MB <small>(10 GB)</small></td>
+              <td class="status-check-text" style="font-size:0.95rem; color:var(--success);">約 10円 〜 50円 /月 <br><small style="font-size:0.7rem; color:var(--text-muted); font-weight:normal;">(無料枠内)</small></td>
+              <td style="color:var(--danger);">約 1.5万 〜 2万円 /月</td>
+            </tr>
+            <tr>
+              <td>標準部署運用</td>
+              <td><strong>50名</strong></td>
+              <td>100,000 MB <small>(100 GB / 2GB×50本)</small></td>
+              <td class="status-check-text" style="font-size:0.95rem; color:var(--success);">約 300円 〜 500円 /月</td>
+              <td style="color:var(--danger);">約 7.5万 〜 10万円 /月</td>
+            </tr>
+            <tr>
+              <td>映像プロダクション規模</td>
+              <td><strong>100名</strong></td>
+              <td>1,000,000 MB <small>(1,000 GB = 1 TB)</small></td>
+              <td class="status-check-text" style="font-size:1.05rem; color:var(--brand-accent); font-weight:800;">約 3,500円 〜 5,000円 /月</td>
+              <td style="color:var(--danger); font-weight:bold;">約 15万 〜 20万円 /月</td>
+            </tr>
+            <tr>
+              <td>超大容量・全社運用</td>
+              <td><strong>200名</strong></td>
+              <td>5,000,000 MB <small>(5,000 GB = 5 TB)</small></td>
+              <td class="status-check-text" style="font-size:1.15rem; color:var(--brand-accent); font-weight:900;">約 1.8万 〜 2.5万円 /月</td>
+              <td style="color:var(--danger); font-weight:bold;">約 30万 〜 40万円 /月 <br><small style="font-size:0.7rem; color:var(--danger); font-weight:normal;">(＋大容量追加オプション代)</small></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:10px; background:rgba(212, 175, 55, 0.08); padding:8px 16px; border-radius:8px; border:1px solid var(--card-border); font-size:0.8rem;">
+          <span class="badge-point">POINT</span> <strong>最大容量送受信のコストメリット:</strong> 1ファイル最大5TBという超大容量の映像データやメガバイト・ギガバイト級のデータをどれだけ大量に送受信しても、ID追加料金や不当な容量追加ペナルティは一切発生しません。
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>最大5TB対応・超巨大映像データの送受信でも圧倒的低コストを維持</span>
+      </div>
+    </div>
+
+    <!-- スライド13: 企業向けセキュリティ要件への適合 (縦並びレイアウトへ変更) -->
+    <div class="slide" id="slide-13">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Enterprise Compliance</span>
+      </div>
+      <div class="slide-body">
+        <h2>一般企業が求めるセキュリティ基準をクリアする体制</h2>
+        <div class="vertical-layout-container">
+          <div class="bullet-list">
+            <div class="bullet-item">
+              <div class="bullet-icon">✓</div>
+              <div class="bullet-content">
+                <h4>ISO/IEC 27001 (ISMS) 準拠の監査ログ対応</h4>
+                <p>送信者、宛先、操作日時、IPアドレス、接続端末情報を網羅した改ざん不可能な監査ログを完備。有事の際の原因追跡を迅速かつ確実に行えます。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">✓</div>
+              <div class="bullet-content">
+                <h4>誤送信防止のシステムバリデーション</h4>
+                <p>適正な宛先メールアドレス（ドメイン形式）が入力されるまで、送信ボタンの有効化（活性化）をシステム上で完全に制限します。</p>
+              </div>
+            </div>
+            <div class="bullet-item">
+              <div class="bullet-icon">✓</div>
+              <div class="bullet-content">
+                <h4>管理者によるアクセスログの一元管理ダッシュボード</h4>
+                <p>特定の管理者アカウントにのみ、「管理者メニュー」が表示され、過去の監査ログの検索・監視・CSV書き出し等を簡単に行うことができます。</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- テキスト下部に広幅配置する本番カード -->
+          <div class="feature-card" style="background: rgba(147, 123, 105, 0.12); width:100%; display:flex; justify-content:space-between; align-items:center; gap:20px;">
+            <div style="flex:1;">
+              <h4 style="color:var(--brand-accent); font-size:1.1rem; margin-bottom:6px;">実用稼働中の自社専用セキュリティソリューション</h4>
+              <p style="font-size:0.88rem; line-height:1.5; margin:0;">
+                このシステムは、Firebaseの管理者設定（inoue@ajiado.co.jp）のもとで本番稼働しており、追加開発なしで即座に社内運用を開始できます。自社インフラに閉じた状態でデータをやり取りするため、第三者への情報流出ルートを完全に排除した運用が可能です。
+              </p>
+            </div>
+            <span style="font-size: 0.85rem; border: 1.5px solid var(--success); color: var(--success); padding: 8px 16px; border-radius: 8px; font-weight:bold; flex-shrink:0; background:rgba(52,211,153,0.08);">
+              本番システムに実装・運用中
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>実務における利便性とセキュリティ統制の両立</span>
+      </div>
+    </div>
+
+    <!-- スライド14: 他サービスとの比較 -->
+    <div class="slide" id="slide-14">
+      <div class="slide-header">
+        <span class="brand">
+          <img class="brand-logo-img" src="https://owl-link-54917.web.app/assets/OwlLedger_favicon.png" alt="Icon" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;">
+          ++Owl Link..
+        </span>
+        <span class="category">Service Comparison</span>
+      </div>
+      <div class="slide-body">
+        <h2>他社ファイル転送サービスとのセキュリティ比較</h2>
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>比較項目</th>
+              <th style="color: var(--brand-accent); background: rgba(212,175,55,0.08);">++Owl Link.. (自社)</th>
+              <th>一般の大容量転送サービス</th>
+              <th>他社有償クラウド共有ツール</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>End-to-End暗号化 (ゼロナレッジ)</td>
+              <td class="status-check-text">適合 (ブラウザ内完結)</td>
+              <td class="status-cross-text">非対応 (サーバー側で復号可能)</td>
+              <td class="status-cross-text">非対応 (事業者鍵で復号可能)</td>
+            </tr>
+            <tr>
+              <td>広告表示（マルウェア・詐欺リスク）</td>
+              <td class="status-check-text">なし (クリーンなUI)</td>
+              <td class="status-cross-text">あり (広告の誤操作リスク)</td>
+              <td>なし</td>
+            </tr>
+            <tr>
+              <td>監査ログ（送信・受信の追跡性）</td>
+              <td class="status-check-text">適合 (接続元IP/環境含む)</td>
+              <td class="status-cross-text">非対応 (ログ開示なし)</td>
+              <td class="status-check-text">適合 (要上位プラン契約)</td>
+            </tr>
+            <tr>
+              <td>誤送信防止（送信前バリデーション）</td>
+              <td class="status-check-text">適合 (ドメイン検証必須)</td>
+              <td class="status-cross-text">非対応</td>
+              <td>オプション（要管理者設定）</td>
+            </tr>
+            <tr>
+              <td>運用コスト</td>
+              <td class="status-check-text">低コスト（クラウド実費のみ）</td>
+              <td>無料</td>
+              <td class="status-cross-text">高額（アカウント月額課金）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="slide-footer">
+        <span class="slide-page-num"></span>
+        <span>安全性、信頼性、コストのすべての要件をクリアする最適解</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 固定配置されたナビゲーションコントロール -->
+  <div class="controls">
+    <button class="btn-nav" id="prev-btn" disabled>PREV (←)</button>
+    <div class="dots" id="dots-container"></div>
+    <button class="btn-nav" id="next-btn">NEXT (→)</button>
+  </div>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const dotsContainer = document.getElementById('dots-container');
+    let currentSlideIndex = 0;
+
+    // ドットナビゲーションの動的生成
+    slides.forEach((slide, index) => {
+      const dot = document.createElement('div');
+      dot.classList.add('dot');
+      if (index === 0) dot.classList.add('active');
+      dot.addEventListener('click', () => goToSlide(index));
+      dotsContainer.appendChild(dot);
+    });
+
+    const dots = document.querySelectorAll('.dot');
+
+    function updateControls() {
+      prevBtn.disabled = currentSlideIndex === 0;
+      nextBtn.disabled = currentSlideIndex === slides.length - 1;
+      
+      dots.forEach((dot, index) => {
+        dot.classList.toggle('active', index === currentSlideIndex);
+      });
+
+      // ページ番号を動的に更新する
+      slides.forEach((slide, index) => {
+        const pageNumEl = slide.querySelector('.slide-page-num');
+        if (pageNumEl) {
+          const currentPage = (index + 1).toString().padStart(2, '0');
+          const totalPages = slides.length.toString().padStart(2, '0');
+          pageNumEl.textContent = `${currentPage} / ${totalPages}`;
+        }
+      });
+    }
+
+    // 初期化時にも実行してフッター番号を描画
+    updateControls();
+
+    function goToSlide(index) {
+      if (index < 0 || index >= slides.length) return;
+      slides[currentSlideIndex].classList.remove('active');
+      currentSlideIndex = index;
+      slides[currentSlideIndex].classList.add('active');
+      updateControls();
+    }
+
+    prevBtn.addEventListener('click', () => {
+      goToSlide(currentSlideIndex - 1);
+    });
+
+    nextBtn.addEventListener('click', () => {
+      goToSlide(currentSlideIndex + 1);
+    });
+
+    // キーボードショートカット (左右矢印キー)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') {
+        goToSlide(currentSlideIndex - 1);
+      } else if (e.key === 'ArrowRight') {
+        goToSlide(currentSlideIndex + 1);
+      }
+    });
+  </script>
+</body>
+</html>

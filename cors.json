@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://test-54084-466403.web.app", "http://localhost:5173"],
+    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "header": ["Content-Type", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]

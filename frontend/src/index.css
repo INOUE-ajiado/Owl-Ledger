@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-earth: #937B69;
+  --secondary-earth: #bfa899;
+  --light-earth: #f2ece9;
+  --dark-earth: #5c4d42;
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-shadow: 0 8px 32px 0 rgba(147, 123, 105, 0.15);
+}
+
+body {
+  background-color: var(--light-earth);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(147, 123, 105, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(147, 123, 105, 0.1) 0px, transparent 50%);
+  color: var(--dark-earth);
+  min-height: 100vh;
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 12px;
+}
+
+.glass-sidebar {
+  background: rgba(147, 123, 105, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--glass-border);
+}
+
+.text-earth { color: var(--primary-earth); }
+.bg-earth { background-color: var(--primary-earth); }
+.border-earth { border-color: var(--primary-earth); }
+
+/* Scrollbar styling to match earth theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(147, 123, 105, 0.05);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--secondary-earth);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-earth);
+}

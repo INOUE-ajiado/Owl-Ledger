@@ -1,0 +1,12 @@
+{
+  "name": "owl_ledger",
+  "version": "1.0.0",
+  "scripts": {
+    "deploy": "cd frontend && npm run build && cd .. && firebase deploy"
+  },
+  "private": true,
+  "dependencies": {
+    "firebase-functions": "^6.4.0",
+    "react-to-print": "^3.2.0"
+  }
+}

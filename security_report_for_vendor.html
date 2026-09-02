@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCイベントログ調査報告書（解析参考資料）</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0f172a;
+            --primary-blue: #1e3a8a;
+            --primary-light: #f8fafc;
+            --text-main: #334155;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --bg-page: #f1f5f9;
+            --bg-card: #ffffff;
+            --border: #cbd5e1;
+            --success: #059669;
+            --success-bg: #ecfdf5;
+            --success-border: #a7f3d0;
+            --warning: #d97706;
+            --warning-bg: #fffbeb;
+            --warning-border: #fde68a;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+            --danger-border: #fca5a5;
+            --danger-dark: #991b1b;
+            --info: #2563eb;
+            --info-bg: #eff6ff;
+            --info-border: #bfdbfe;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .report-paper {
+            background: var(--bg-card);
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            border-bottom: 3px solid var(--primary-blue);
+            padding-bottom: 12px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .header-title h1 {
+            font-size: 1.25rem;
+            color: var(--text-dark);
+            font-weight: 900;
+            letter-spacing: -0.5px;
+        }
+        .header-meta {
+            text-align: right;
+            font-size: 0.78rem;
+            color: var(--text-dark);
+            font-weight: bold;
+            line-height: 1.4;
+        }
+        .tag-confidential {
+            color: white;
+            background-color: var(--danger-dark);
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            display: inline-block;
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+            font-weight: 900;
+        }
+        h2 {
+            font-size: 1.1rem;
+            color: var(--primary-blue);
+            border-left: 5px solid var(--primary-blue);
+            padding-left: 8px;
+            margin: 30px 0 12px 0;
+            font-weight: 900;
+            break-after: avoid;
+            page-break-after: avoid;
+        }
+        h3 {
+            font-size: 0.95rem;
+            color: var(--text-dark);
+            margin: 20px 0 8px 0;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            break-after: avoid;
+            page-break-after: avoid;
+        }
+        h3::before {
+            content: "■";
+            color: var(--primary-blue);
+            font-size: 0.7rem;
+            margin-right: 6px;
+        }
+        p {
+            font-size: 0.82rem;
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+        /* 総合判定ブロック */
+        .verdict-banner {
+            border: 2px solid var(--danger-border);
+            background-color: var(--danger-bg);
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .verdict-text {
+            flex-grow: 1;
+            padding-right: 15px;
+        }
+        .verdict-title {
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: var(--danger-dark);
+            margin-bottom: 4px;
+        }
+        .verdict-desc {
+            font-size: 0.78rem;
+            color: var(--text-main);
+        }
+        .verdict-badge {
+            background-color: var(--danger-dark);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(185, 28, 28, 0.2);
+            white-space: nowrap;
+        }
+        /* 注意・情報ボックス */
+        .caveat-box {
+            background-color: var(--info-bg);
+            border: 1px solid var(--info-border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.78rem;
+            color: var(--text-dark);
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .caveat-box .caveat-title {
+            font-weight: 900;
+            color: var(--info);
+            margin-bottom: 4px;
+            font-size: 0.82rem;
+        }
+        .info-box {
+            background-color: var(--success-bg);
+            border: 1px solid var(--success-border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.78rem;
+            color: var(--text-dark);
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .info-box .info-title {
+            font-weight: 900;
+            color: var(--success);
+            margin-bottom: 4px;
+            font-size: 0.82rem;
+        }
+        /* 集計ボックス */
+        .summary-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .summary-box {
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 6px;
+            background-color: var(--primary-light);
+            text-align: center;
+        }
+        .summary-box .title {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .summary-box .val {
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: var(--text-dark);
+        }
+        .summary-box.status-danger {
+            background-color: var(--danger-bg);
+            border-color: var(--danger);
+        }
+        .summary-box.status-danger .val {
+            color: var(--danger-dark);
+        }
+        .summary-box.status-warning {
+            background-color: var(--warning-bg);
+            border-color: var(--warning);
+        }
+        .summary-box.status-warning .val {
+            color: var(--warning);
+        }
+        /* 説明用枠 */
+        .explain-box {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            font-size: 0.8rem;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .explain-box strong {
+            color: var(--text-dark);
+        }
+        /* テーブル */
+        .audit-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 0.73rem;
+        }
+        .audit-table th, .audit-table td {
+            border: 1px solid var(--border);
+            padding: 6px 8px;
+            text-align: left;
+        }
+        .audit-table th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+        .audit-table tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.68rem;
+            display: inline-block;
+        }
+        .badge-danger {
+            background-color: var(--danger-bg);
+            color: var(--danger-dark);
+            border: 1px solid var(--danger);
+        }
+        .badge-warning {
+            background-color: var(--warning-bg);
+            color: var(--warning);
+            border: 1px solid var(--warning);
+        }
+        .badge-safe {
+            background-color: var(--success-bg);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+        .badge-gray {
+            background-color: #f1f5f9;
+            color: #475569;
+            border: 1px solid #94a3b8;
+        }
+        /* 技術詳細枠 */
+        .tech-box {
+            background-color: var(--primary-light);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.73rem;
+            color: var(--text-dark);
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .tech-box table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .tech-box td, .tech-box th {
+            padding: 3px 6px;
+            vertical-align: top;
+        }
+        .tech-box td.label {
+            font-weight: bold;
+            color: var(--text-muted);
+            width: 25%;
+        }
+        .emphasis {
+            font-weight: bold;
+            color: var(--danger-dark);
+            background-color: var(--danger-bg);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+        .highlight-success {
+            font-weight: bold;
+            color: var(--success);
+            background-color: var(--success-bg);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+        /* タイムライン */
+        .timeline {
+            margin: 15px 0;
+            padding-left: 15px;
+            border-left: 3px solid var(--primary-blue);
+            font-size: 0.8rem;
+        }
+        .timeline-item {
+            margin-bottom: 14px;
+            position: relative;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        .timeline-item::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            background-color: var(--primary-blue);
+            border: 2px solid white;
+            border-radius: 50%;
+            position: absolute;
+            left: -22px;
+            top: 5px;
+        }
+        .timeline-item.warning::before {
+            background-color: var(--warning);
+        }
+        .timeline-item.danger::before {
+            background-color: var(--danger);
+        }
+        .timeline-time {
+            font-weight: bold;
+            color: var(--primary-blue);
+            font-size: 0.82rem;
+        }
+        .timeline-time.warning {
+            color: var(--warning);
+        }
+        .timeline-content {
+            margin-top: 2px;
+            font-size: 0.78rem;
+            color: var(--text-dark);
+        }
+        ul {
+            font-size: 0.82rem;
+            margin-bottom: 12px;
+            padding-left: 20px;
+        }
+        ul li {
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="report-paper">
+        <!-- ヘッダー -->
+        <div class="header">
+            <div class="header-title">
+                <h1>PCイベントログ調査報告書（解析参考資料）</h1>
+            </div>
+            <div class="header-meta">
+                <span class="tag-confidential">極秘（要機密保持）</span><br>
+                <span>調査対象: PC計23台のイベントログおよび関連UTMログ</span><br>
+                <span>作成日: 2026年6月10日</span>
+            </div>
+        </div>
+        <!-- 決定的な事実サマリー -->
+        <div class="info-box">
+            <div class="info-title">💡 一次調査で判明した客観的事実および解析対象</div>
+            <ul style="margin-top: 4px; font-size: 0.76rem;">
+                <li><strong>「KslD.sys」の同期性（正規のDefender更新と推測される動作）</strong>: <code>miyata</code> および <code>tajima</code> PCのシステムログを秒単位で監査した結果、<code>KslD.sys</code> ドライバの配置・ロードが <strong>Microsoft Defender プラットフォーム更新プログラム（KB4052623）の実行プロセスの内部で発生している</strong> ことを確認しました。これにより、当該動作は Windows Update に伴う正規動作である可能性が高いと判断されます。</li>
+                <li><strong>「hori」PC の遠隔操作接続（Allowed）の特定（最重要解析対象）</strong>: UTMログとイベントログを秒単位で突合した結果、<code>hori</code> PC（IP: <code>192.168.1.128</code>）において ScreenConnect がインストールされた時刻（13:00:11）のわずか5秒後に、外部IP（<code>109.236.50.87:8041</code>）への通信がAllowed（許可）された事実を確認しました。本接続の確立経緯および実行された操作の解析を求めます。</li>
+                <li><strong>hori PC のセキュリティログ件数の異常値</strong>: 他のPCが数千〜数万件のセキュリティログ（EventID 4624など）を記録している中、<code>hori PC</code> はわずか <strong>480件</strong> のみしかログが残っていません。これは監査ポリシーの設定不備、または攻撃者による意図的なログ削除（改竄）の可能性を示唆しています。この点についての痕跡調査も併せて依頼します。</li>
+            </ul>
+        </div>
+        <h2>1. PCイベントログ調査サマリー</h2>
+        <p>
+            対象PC計23台の「システムログ」および「セキュリティログ」を監査した結果、以前セキュリティ侵害の兆候と懸念されていた不審ドライバー <code>KslD.sys</code> は、正規の Windows Update に伴う動作である可能性が高いと判断されました。
+            一方、<strong>利用者PC（hori PC / IP: 192.168.1.128）において、認可されていない ScreenConnect（リモートアクセスツール）のインストールおよび外部中継サーバーへの接続確立が確認されており、詳細なフォレンジック解析および影響範囲特定を依頼します</strong>。
+        </p>
+        <div class="summary-container">
+            <div class="summary-box">
+                <div class="title">調査対象PC数</div>
+                <div class="val">23 台</div>
+            </div>
+            <div class="summary-box status-danger">
+                <div class="title">要詳細解析PC（赤判定）</div>
+                <div class="val">1 台 (hori)</div>
+            </div>
+            <div class="summary-box status-safe">
+                <div class="title">影響なし判断PC（緑判定）</div>
+                <div class="val">22 台</div>
+            </div>
+        </div>
+        <div class="verdict-banner">
+            <div class="verdict-text">
+                <div class="verdict-title">総合判定：リモートアクセスツールの稼働および外部接続の検出（詳細解析を依頼）</div>
+                <div class="verdict-desc">
+                    <code>hori</code> PC（IP: <code>192.168.1.128</code>）において、リモートアクセスツール <code>ScreenConnect</code> のインストール（EventID 7045）が確認されました。同日朝にはMicrosoft Defenderの更新がエラー <code>0x80240016</code> で失敗している点、およびセキュリティログが極端に少ない点など、不審な挙動が複数存在するため、即座に当該端末をネットワークから隔離し、本情報をもとに詳細なフォレンジック調査およびログ解析を依頼します。
+                </div>
+            </div>
+            <div class="verdict-badge">要詳細解析 (赤)</div>
+        </div>
+        <h2>2. 要注意および詳細調査PC一覧</h2>
+        <table class="audit-table">
+            <thead>
+                <tr>
+                    <th>対象PC名 (IPアドレス)</th>
+                    <th>脅威度</th>
+                    <th>イベントログの特徴・証拠データ</th>
+                    <th>判定の理由と詳細解析依頼事項</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background-color: var(--danger-bg); font-weight: bold;">
+                    <td>hori<br>(192.168.1.128)</td>
+                    <td><span class="badge badge-danger">高</span></td>
+                    <td>
+                        ・6/1 13:00:11 ScreenConnect クライアントが新規サービスとして登録 (EventID 7045)<br>
+                        ・6/1 09:57:52 Defender更新プログラムのインストールがエラー 0x80240016 で失敗
+                    </td>
+                    <td>
+                        管理外のリモートアクセスツールの無断インストールと、その直後の外部通信を検知。
+                        セキュリティログが極端に少なく外部リモートログオン（Type 3/10）のログはありませんが、ログ改竄や監査ポリシーの設定ミスが疑われるため、侵害の極めて強い疑いと判断します。即時隔離およびフォレンジック調査が必要です。
+                    </td>
+                </tr>
+                <tr>
+                    <td>miyata / tajima</td>
+                    <td><span class="badge badge-safe">底</span></td>
+                    <td>
+                        ・6/4 18:25 (miyata) / 6/4 11:42 (tajima) に KslD.sys をカーネルドライバとして登録 (EventID 7045)<br>
+                        ・同一タイムスタンプ上に Microsoft Defender 更新プログラム (KB4052623) のインストールおよびフィルタ（WdFilter）のロードが秒単位で同期
+                    </td>
+                    <td>
+                        不審ドライバと懸念された <code>KslD.sys</code> は、Microsoft Defender プラットフォームの更新プロセスの一環としてロードされた正規のセキュリティコンポーネントであることが実証されました。安全と判定します。
+                    </td>
+                </tr>
+                <tr style="background-color: var(--warning-bg);">
+                    <td>tokue</td>
+                    <td><span class="badge badge-warning">中</span></td>
+                    <td>
+                        ・6/4 13:47:56 に KslD.sys の登録を確認 (EventID 7045)<br>
+                        ・登録直前に BITS (Background Intelligent Transfer Service) の開始・停止イベントが発生
+                    </td>
+                    <td>
+                        BITSの起動パターンから高確率で Windows Update と推測されますが、ログ上に Windows Update クライアントの完了ログ (ID 43/19) が記録されていません。状況証拠による推定のため「中（状況証拠）」とします。
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <h2>3. 時系列詳細ログ突合（タイムライン解析）</h2>
+        <p>
+            問題が発生した <code>hori PC</code> のログと、Windows Update であることが実証された <code>miyata PC</code> のログのタイムラインを対比します。
+        </p>
+        <h3>① hori PC インシデントタイムライン (6月1日)</h3>
+        <div class="timeline">
+            <div class="timeline-item warning">
+                <span class="timeline-time warning">09:57:52</span>
+                <div class="timeline-content">
+                    <strong>Defender 更新失敗 (EventID 20)</strong><br>
+                    Microsoft Defender の署名更新がエラーコード <code>0x80240016</code> (別のインストールが進行中) により失敗。
+                </div>
+            </div>
+            <div class="timeline-item danger">
+                <span class="timeline-time">13:00:11</span>
+                <div class="timeline-content">
+                    <strong>ScreenConnect サービス登録 (EventID 7045)</strong><br>
+                    サービス名 <code>ScreenConnect Client (xxxxxxxxxxxx)</code> がシステムへ登録される。インストールログがイベントログに記録される。
+                </div>
+            </div>
+            <div class="timeline-item danger">
+                <span class="timeline-time">13:00:16</span>
+                <div class="timeline-content">
+                    <strong>外部サーバーへの Allowed 通信開始 (UTMログ)</strong><br>
+                    登録からわずか 5秒後、外部IP <code>109.236.50.87:8041</code>（中継ドメイン）宛てにセッションが成立。
+                </div>
+            </div>
+        </div>
+        <h3>② miyata / tajima PC Windows Update タイムライン (6月4日)</h3>
+        <p>
+            <code>miyata</code> および <code>tajima</code> PCでは、KslD.sysのロードとKB4052623の更新が秒単位で一致しています。
+        </p>
+        <table class="audit-table" style="max-width: 600px;">
+            <thead>
+                <tr>
+                    <th>時刻 (6/4)</th>
+                    <th>イベント内容</th>
+                    <th>Event ID</th>
+                    <th>ソース / サービス名</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>18:25:06</td>
+                    <td>アップデートインストール開始 (KB4052623)</td>
+                    <td>ID 43</td>
+                    <td>WindowsUpdateClient</td>
+                </tr>
+                <tr>
+                    <td>18:25:25</td>
+                    <td>WdFilter (Defenderドライバ) アンロード</td>
+                    <td>ID 1</td>
+                    <td>Microsoft-Windows-Windows Defender</td>
+                </tr>
+                <tr>
+                    <td>18:25:44</td>
+                    <td>WdFilter (Defenderドライバ) ロード完了</td>
+                    <td>ID 6</td>
+                    <td>Microsoft-Windows-Windows Defender</td>
+                </tr>
+                <tr style="background-color: var(--success-bg); font-weight: bold;">
+                    <td>18:25:45</td>
+                    <td>KslD.sys カーネルドライバ登録</td>
+                    <td>ID 7045</td>
+                    <td>Service Control Manager</td>
+                </tr>
+                <tr>
+                    <td>18:25:58</td>
+                    <td>アップデート成功記録</td>
+                    <td>ID 19</td>
+                    <td>WindowsUpdateClient</td>
+                </tr>
+            </tbody>
+        </table>
+        <h2>4. 証拠の強度マトリクス</h2>
+        <table class="audit-table">
+            <thead>
+                <tr>
+                    <th>調査対象の事象</th>
+                    <th>証拠レベル</th>
+                    <th>分類</th>
+                    <th>技術的補足</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>miyata/tajima での KslD.sys ＝ 正規 Defender 更新</strong></td>
+                    <td>🟢 高 (直接証拠あり)</td>
+                    <td><strong>実証された事実</strong></td>
+                    <td>Windows Updateの開始(ID 43)から完了(ID 19)の間に、秒単位でドライバアンロード・登録・リロードが行われているため。</td>
+                </tr>
+                <tr>
+                    <td><strong>hori PC から外部への ScreenConnect 接続成立</strong></td>
+                    <td>🟢 高 (直接証拠あり)</td>
+                    <td><strong>実証された事実</strong></td>
+                    <td>サービス登録(13:00:11)と、UTMログのセッション開始(13:00:16)が完全に一致しているため。</td>
+                </tr>
+                <tr>
+                    <td><strong>tokue PC での KslD.sys ＝ 正規 Defender 更新</strong></td>
+                    <td>🟡 中 (状況証拠のみ)</td>
+                    <td><strong>高確率の推定</strong></td>
+                    <td>BITS起動パターンは一致するが、システムログに Windows Update のイベントログ(ID 43/19)が存在しないため。</td>
+                </tr>
+            </tbody>
+        </table>
+        <h2>5. 一次調査における用語・Event IDの定義</h2>
+        <table class="audit-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">用語・Event ID</th>
+                    <th style="width: 35%;">一般的な技術的意味</th>
+                    <th style="width: 40%;">今回の調査における注目ポイントと重要度</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Event ID 7045</strong><br>(サービス作成)</td>
+                    <td>PCに新しいシステムプログラム（サービス）が追加・インストールされたことを記録します。</td>
+                    <td>マルウェアや管理外ツール（ScreenConnect）が自動起動サービスとして登録された手口を検出するために重要です。</td>
+                </tr>
+                <tr>
+                    <td><strong>Event ID 7040</strong><br>(スタートアップ変更)</td>
+                    <td>既存のサービスの起動設定（自動、手動、無効等）が変更されたことを記録します。</td>
+                    <td>Windows Updateなどの際に、各種モジュールの起動タイプが変更されるログとして頻発します。</td>
+                </tr>
+                <tr>
+                    <td><strong>Event ID 4624</strong><br>(サインイン成功)</td>
+                    <td>ユーザーまたはシステムがPCへのサインイン（ログイン）に成功した記録です。</td>
+                    <td>外部のIPアドレスから、不審なログオンタイプ（リモートデスクトップを表すType 10等）でのサインインがないかを追跡します。</td>
+                </tr>
+                <tr>
+                    <td><strong>Event ID 4625</strong><br>(サインイン失敗)</td>
+                    <td>パスワードの間違い等により、PCへのサインインに失敗した記録です。</td>
+                    <td>短時間にこのログが大量発生している場合、総当たり攻撃（ブルートフォース）の疑いがあります。</td>
+                </tr>
+            </tbody>
+        </table>
+        <h2>6. 一次調査における制限事項および詳細解析依頼</h2>
+        <ul>
+            <li><strong>ログ改竄およびポリシー未設定の懸念</strong>: <code>hori PC</code> のセキュリティログは合計480件しか記録されていません（他のPCは数千〜数万件）。外部からのリモートアクセスログオン（Type 3/10）が検知されなかったのは、攻撃者によってログが消去されたか、あるいは元々監査ポリシーが適切に設定されておらず、ログオン成功が記録されない設定になっていた可能性があります。業者の詳細解析によるログ復元、レジストリ内のセッション接続情報の調査、あるいはイベントログ消去プロセス（Event ID 1102）の痕跡有無の確認を依頼します。</li>
+            <li><strong>メモリ上のみで動作するマルウェアの検知</strong>: イベントログはレジストリやファイルシステム、サービスの変更を伴うイベントは記録しますが、ファイルを作成せずメモリ上でのみ動的に実行される攻撃コードは検知できない場合があります。そのため、端末のメモリダンプ解析や、ディスク上の削除ファイルの復元、ネットワーク通信パケットログの相関解析を含めた総合的なフォレンジック調査を依頼します。</li>
+        </ul>
+        <!-- フッター -->
+        <div class="footer">
+            <span>PCイベントログ セキュリティ調査報告書（解析参考資料）</span>
+            <span>機密情報 - 取扱注意</span>
+            <span>Evtx & UTM Traffic Analyzer</span>
+        </div>
+    </div>
+</body>
+</html>
