@@ -20,11 +20,11 @@ interface SidebarProps {
 const Sidebar = ({ activeView, setView, permissions }: SidebarProps) => {
 
   const allNavItems = [
-    { id: 'dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
     { id: 'projects', label: 'プロジェクト一覧', icon: ClipboardList },
     { id: 'clients', label: 'クライアント管理', icon: Users },
     { id: 'ledger', label: '出納帳', icon: BookText },
     { id: 'permissions', label: 'アクセス権限', icon: KeyRound },
+    { id: 'dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
     { id: 'logs', label: '実行ログ', icon: History },
   ];
 
