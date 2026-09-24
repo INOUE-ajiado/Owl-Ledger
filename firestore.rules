@@ -30,7 +30,13 @@ service cloud.firestore {
     // 2. 権限管理 (permissions)
     match /permissions/{email} {
       allow read: if true; 
-      allow write: if isAdmin() || (request.auth != null && request.auth.token.email == email);
+      allow create, delete: if isAdmin();
+      // 本人に許可するのは、初回ログイン時の自分の uid の登録のみ（権限の自己変更は不可）
+      allow update: if isAdmin() || (
+        request.auth != null && request.auth.token.email == email &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid']) &&
+        request.resource.data.uid == request.auth.uid
+      );
     }
 
     // 3. クライアント管理 (clients)

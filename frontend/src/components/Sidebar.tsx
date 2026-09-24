@@ -1,4 +1,5 @@
-import { auth } from '../api/firebase';
+import { onDisconnect, set, serverTimestamp } from 'firebase/database';
+import { auth, getUserStatusRef } from '../api/firebase';
 import type { UserPermissions, PermissionSet, ViewType } from '../types';
 import { APP_VERSION } from '../version';
 import {
@@ -16,6 +17,21 @@ interface SidebarProps {
   setView: (view: ViewType) => void;
   permissions: UserPermissions | null;
 }
+
+// ログアウト前にオンライン状態をオフラインにする (サインアウト後は書き込めないため先に行う)
+const handleLogout = async () => {
+  const email = auth.currentUser?.email;
+  if (email) {
+    const statusRef = getUserStatusRef(email);
+    try {
+      await onDisconnect(statusRef).cancel();
+      await set(statusRef, { isOnline: false, last_changed: serverTimestamp() });
+    } catch (error) {
+      console.error("Failed to update online status on logout:", error);
+    }
+  }
+  await auth.signOut();
+};
 
 const Sidebar = ({ activeView, setView, permissions }: SidebarProps) => {
 
@@ -101,7 +117,7 @@ const Sidebar = ({ activeView, setView, permissions }: SidebarProps) => {
         </a>
 
         <button
-          onClick={() => auth.signOut()}
+          onClick={handleLogout}
           className="flex items-center w-full px-3 py-2.5 text-sm font-medium text-earth-700 transition-all duration-200 rounded-lg hover:bg-white/40 hover:text-earth-900"
         >
           <LogOut className="w-5 h-5" />

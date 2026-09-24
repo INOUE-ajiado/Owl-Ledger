@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
-import { getDatabase } from "firebase/database";
+import { getDatabase, ref } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -20,3 +20,6 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const rtDb = getDatabase(app);
+
+// オンライン状態を保持する Realtime Database 上の参照 (キーにドットが使えないためカンマに置換)
+export const getUserStatusRef = (email: string) => ref(rtDb, '/status/' + email.replace(/\./g, ','));

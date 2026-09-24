@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { getAuth, sendSignInLinkToEmail } from 'firebase/auth';
 
-const LoginPage = () => {
+interface LoginPageProps {
+  initialError?: string;
+}
+
+const LoginPage = ({ initialError = '' }: LoginPageProps) => {
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {

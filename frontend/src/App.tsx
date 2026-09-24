@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signInWithEmailLink, isSignInWithEmailLink, type User } from 'firebase/auth';
-import { auth, db, rtDb } from './api/firebase';
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { ref as dbRef, onDisconnect, set, onValue } from "firebase/database";
+import { auth, db, rtDb, getUserStatusRef } from './api/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { ref as dbRef, onDisconnect, set, onValue, serverTimestamp } from "firebase/database";
 import type { UserPermissions, ModalOptions } from './types';
 import { AuthContext, ModalContext } from './contexts';
 import AppLayout from './components/AppLayout';
@@ -21,11 +21,56 @@ import PersonalReceiptPrintPage from './features/printing/PersonalReceiptPrintPa
 import LedgerApprovalPage from './features/ledger/approval/LedgerApprovalPage';
 import ActivityLogPage from './features/admin/ActivityLogPage'; // ★ ログページを追加
 
+const describeEmailLinkError = (error: unknown): string => {
+  const code = (error as { code?: string })?.code;
+  switch (code) {
+    case 'auth/invalid-email':
+      return 'メールアドレスが認証リンクの送信先と一致しません。';
+    case 'auth/expired-action-code':
+    case 'auth/invalid-action-code':
+      return '認証リンクの有効期限が切れているか、既に使用されています。もう一度認証リンクを送信してください。';
+    default:
+      return 'ログインに失敗しました。もう一度認証リンクを送信してください。';
+  }
+};
+
+// メールリンクによるサインインを完了させる。失敗時はユーザー向けのエラーメッセージを返す。
+const completeEmailLinkSignIn = async (): Promise<string | null> => {
+  const href = window.location.href;
+  if (!isSignInWithEmailLink(auth, href)) return null;
+
+  // ワンタイムコードをURLから消し、リロード時に使用済みリンクで再サインインしないようにする
+  window.history.replaceState(null, '', window.location.pathname);
+
+  let email = window.localStorage.getItem('emailForSignIn');
+  if (!email) {
+    email = window.prompt('確認のためメールアドレスを再入力してください:');
+  }
+  if (!email) {
+    return 'メールアドレスが入力されなかったため、ログインを完了できませんでした。';
+  }
+
+  try {
+    await signInWithEmailLink(auth, email.trim(), href);
+    return null;
+  } catch (error) {
+    console.error("Sign in with email link failed:", error);
+    return describeEmailLinkError(error);
+  } finally {
+    window.localStorage.removeItem('emailForSignIn');
+  }
+};
+
+// StrictMode でエフェクトが2回実行されても、ワンタイムリンクの消費は1回だけにする
+let emailLinkSignIn: Promise<string | null> | null = null;
+const getEmailLinkSignIn = () => (emailLinkSignIn ??= completeEmailLinkSignIn());
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [permissions, setPermissions] = useState<UserPermissions | null>(null);
   const [loading, setLoading] = useState(true);
   const [modalOptions, setModalOptions] = useState<ModalOptions | null>(null);
+  const [authError, setAuthError] = useState('');
 
   const showModal = (options: ModalOptions) => {
     setModalOptions(options);
@@ -36,55 +81,75 @@ function App() {
   };
 
   useEffect(() => {
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      let email = window.localStorage.getItem('emailForSignIn');
-      if (!email) {
-        email = window.prompt('確認のためメールアドレスを再入力してください:');
-      }
-      if (email) {
-        signInWithEmailLink(auth, email, window.location.href)
-          .catch((error) => console.error("Sign in with email link failed:", error))
-          .finally(() => window.localStorage.removeItem('emailForSignIn'));
-      }
-    }
+    let unsubscribe = () => {};
+    let stopPresence = () => {};
+    let cancelled = false;
 
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser && currentUser.email) {
-        setUser(currentUser);
-        const permDoc = await getDoc(doc(db, 'permissions', currentUser.email));
-        if (permDoc.exists()) {
-          const permData = permDoc.data();
-          setPermissions({
-            email: currentUser.email,
-            uid: currentUser.uid,
-            permissions: permData.permissions
-          });
+    // メールリンクでのサインインが終わってから認証状態の監視を始める
+    // (先に監視すると未ログイン扱いで /login へ飛ばされ、失敗時の理由も表示できないため)
+    getEmailLinkSignIn().then((linkError) => {
+      if (cancelled) return;
+      if (linkError) setAuthError(linkError);
 
-          if (!permData.uid) {
-            await updateDoc(doc(db, 'permissions', currentUser.email), { uid: currentUser.uid });
+      unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        // 認証状態が変わるたびに前回の接続監視を解除し、リスナーが重複しないようにする
+        stopPresence();
+        stopPresence = () => {};
+
+        try {
+          if (currentUser && currentUser.email) {
+            const permDoc = await getDoc(doc(db, 'permissions', currentUser.email));
+            if (permDoc.exists()) {
+              const permData = permDoc.data();
+              setUser(currentUser);
+              setPermissions({
+                email: currentUser.email,
+                uid: currentUser.uid,
+                permissions: permData.permissions
+              });
+
+              if (!permData.uid) {
+                await updateDoc(doc(db, 'permissions', currentUser.email), { uid: currentUser.uid });
+              }
+
+              const userStatusRef = getUserStatusRef(currentUser.email);
+              const isOfflineForDatabase = { isOnline: false, last_changed: serverTimestamp() };
+              const isOnlineForDatabase = { isOnline: true, last_changed: serverTimestamp() };
+
+              stopPresence = onValue(dbRef(rtDb, '.info/connected'), (snapshot) => {
+                if (snapshot.val() === false) return;
+                onDisconnect(userStatusRef).set(isOfflineForDatabase).then(() => {
+                  set(userStatusRef, isOnlineForDatabase);
+                });
+              });
+            } else {
+              // 権限未登録のユーザーはログインさせない (ログイン画面に理由を表示)
+              setUser(null);
+              setPermissions(null);
+              setAuthError('このメールアドレスにはアクセス権限がありません。管理者に連絡してください。');
+              await auth.signOut();
+            }
+          } else {
+            setUser(null);
+            setPermissions(null);
           }
-
-          const userStatusRef = dbRef(rtDb, '/status/' + currentUser.email.replace(/\./g, ','));
-          const isOfflineForDatabase = { isOnline: false, last_changed: serverTimestamp() };
-          const isOnlineForDatabase = { isOnline: true, last_changed: serverTimestamp() };
-
-          onValue(dbRef(rtDb, '.info/connected'), (snapshot) => {
-            if (snapshot.val() === false) return;
-            onDisconnect(userStatusRef).set(isOfflineForDatabase).then(() => {
-              set(userStatusRef, isOnlineForDatabase);
-            });
-          });
-        } else {
+        } catch (error) {
+          console.error("Failed to load user permissions:", error);
+          setUser(null);
           setPermissions(null);
-          auth.signOut();
+          setAuthError('ログイン処理中にエラーが発生しました。時間をおいて再度お試しください。');
+          await auth.signOut().catch(() => {});
+        } finally {
+          setLoading(false);
         }
-      } else {
-        setUser(null);
-        setPermissions(null);
-      }
-      setLoading(false);
+      });
     });
-    return () => unsubscribe();
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      stopPresence();
+    };
   }, []);
 
   if (loading) {
@@ -117,7 +182,7 @@ function App() {
             </Route>
 
             {/* --- パブリック/特殊なルート --- */}
-            <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
+            <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage key={authError} initialError={authError} />} />
 
             {/* Ledger Approval Page (承認用URL、匿名可) */}
             <Route path="/approval/:reportId" element={<LedgerApprovalPage />} />
