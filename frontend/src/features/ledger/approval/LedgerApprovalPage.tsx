@@ -3,12 +3,14 @@ import { useParams } from 'react-router-dom';
 import { doc, getDoc, updateDoc, Timestamp, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { db, auth } from '../../../api/firebase';
-import type { LedgerReport, UserPermissions } from '../../../types';
+import type { LedgerEntry, LedgerReport, UserPermissions } from '../../../types';
 import ProgressBar from '../../../components/ProgressBar';
 import { Menu, X, Printer, CheckCircle, Send } from 'lucide-react';
 import { useModal } from '../../../contexts';
 import { LedgerReportSheet } from './components/LedgerReportSheet';
 import { ApprovalSidebar } from './components/ApprovalSidebar';
+import { MobileLedgerView } from './components/MobileLedgerView';
+import { ReceiptBottomSheet } from './components/ReceiptBottomSheet';
 
 const LedgerApprovalPage = () => {
   const { reportId } = useParams<{ reportId: string }>();
@@ -21,6 +23,8 @@ const LedgerApprovalPage = () => {
   const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
+  // スマホ専用画面でレシートを表示中の明細
+  const [mobileReceiptEntry, setMobileReceiptEntry] = useState<LedgerEntry | null>(null);
 
   const componentRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -186,7 +190,7 @@ const LedgerApprovalPage = () => {
       `}</style>
 
       {/* --- ヘッダー：紺色ベースのダークイメージを維持 --- */}
-      <header className="sticky top-0 z-50 bg-[#1e293b] text-white shadow-md no-print border-b border-white/10">
+      <header className="hidden sm:block sticky top-0 z-50 bg-[#1e293b] text-white shadow-md no-print border-b border-white/10">
         <div className="flex items-center justify-between h-16 px-4 sm:px-6">
           <div className="flex items-center">
             <button
@@ -239,7 +243,21 @@ const LedgerApprovalPage = () => {
         </div>
       </header>
 
-      <div className="relative flex flex-col p-2 md:p-8 md:flex-row md:justify-center">
+      {/* --- スマホ専用画面 (sm 未満) --- */}
+      <MobileLedgerView
+        report={report}
+        onApprove={handleApprove}
+        onSelectEntry={setMobileReceiptEntry}
+      />
+      {mobileReceiptEntry && (
+        <ReceiptBottomSheet
+          key={mobileReceiptEntry.id}
+          entry={mobileReceiptEntry}
+          onClose={() => setMobileReceiptEntry(null)}
+        />
+      )}
+
+      <div className="relative hidden sm:flex flex-col p-2 md:p-8 md:flex-row md:justify-center">
         <ApprovalSidebar
           report={report}
           selectedReceiptUrl={selectedReceiptUrl}
