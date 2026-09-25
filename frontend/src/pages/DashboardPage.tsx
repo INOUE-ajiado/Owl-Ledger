@@ -42,7 +42,7 @@ const DashboardPage = () => {
   }, [setHeaderProps, view]);
 
   return (
-    <div className="w-full min-h-full p-4">
+    <div className="w-full min-h-full">
       {view === 'sales' && <ProjectAnalysis />}
       {/* ★ 修正点: 版権分析コンポーネントを表示 */}
       {view === 'copyright' && <CopyrightAnalysis />}

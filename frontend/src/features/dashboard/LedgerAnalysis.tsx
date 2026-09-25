@@ -174,8 +174,8 @@ const LedgerAnalysis = () => {
   if (loading) return <div className="text-center p-10">経費データを分析中...</div>;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div className="glass-panel p-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-earth-200/60">
+      <div className="p-6 bg-white/50 backdrop-blur-sm">
         <h3 className="text-lg font-semibold mb-4 text-earth-800">科目別 経費分析</h3>
         <div className="flex justify-center h-80">
           {pieChartData.labels.length > 0 ? (
@@ -186,7 +186,7 @@ const LedgerAnalysis = () => {
         </div>
       </div>
 
-      <div className="glass-panel p-6">
+      <div className="p-6 bg-white/50 backdrop-blur-sm">
         <h3 className="text-lg font-semibold mb-4 text-earth-800">月次収支サマリー（{new Date().getMonth() + 1}月）</h3>
         <div className="h-80">
           <table className="w-full text-sm text-left">
@@ -229,7 +229,7 @@ const LedgerAnalysis = () => {
         </div>
       </div>
 
-      <div className="lg:col-span-2 glass-panel p-6">
+      <div className="lg:col-span-2 p-6 bg-white/50 backdrop-blur-sm">
         <h3 className="text-lg font-semibold mb-4 text-earth-800">年間経費比較</h3>
         <div className="h-96">
           <Bar data={barChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { title: { display: false } } }} />

@@ -169,8 +169,8 @@ const CopyrightAnalysis = () => {
   if (loading) return <div className="text-center p-10">分析データを読み込み中...</div>;
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center glass-panel p-4">
+    <div className="flex flex-col gap-px bg-earth-200/60">
+      <div className="flex justify-between items-center p-4 bg-white/50 backdrop-blur-sm">
         <div className="flex items-center space-x-4">
           <h2 className="text-xl font-bold text-earth-800">版権・プロジェクト分析レポート</h2>
           <select
@@ -189,9 +189,9 @@ const CopyrightAnalysis = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-px">
         {/* 作品別売上ランキング */}
-        <div className="glass-panel p-6">
+        <div className="p-6 bg-white/50 backdrop-blur-sm">
           <h3 className="text-lg font-semibold mb-4 text-earth-800">作品別 売上ランキング (TOP10)</h3>
           <div className="h-80">
             <Bar
@@ -206,7 +206,7 @@ const CopyrightAnalysis = () => {
         </div>
 
         {/* 平均単価推移 */}
-        <div className="glass-panel p-6">
+        <div className="p-6 bg-white/50 backdrop-blur-sm">
           <h3 className="text-lg font-semibold mb-4 text-earth-800">平均単価推移 (円/キャラ)</h3>
           <p className="text-xs text-earth-400 mb-2">※ GLOSS ÷ キャラクター体数 で算出</p>
           <div className="h-80">
@@ -215,7 +215,7 @@ const CopyrightAnalysis = () => {
         </div>
       </div>
 
-      <div className="glass-panel p-6">
+      <div className="p-6 bg-white/50 backdrop-blur-sm">
         <h3 className="text-lg font-semibold mb-4 text-earth-800">クリエイター 成果ランキング (TOP10)</h3>
         <div className="h-96">
           <Bar

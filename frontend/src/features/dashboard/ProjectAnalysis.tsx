@@ -31,7 +31,7 @@ const GoalProgressBar = ({ value, goal }: { value: number, goal: number }) => {
 };
 
 const KpiCard = ({ title, value, subValue }: { title: string, value: string, subValue?: string }) => (
-  <div className="p-5 glass-panel">
+  <div className="p-5 bg-white/50 backdrop-blur-sm">
     <h3 className="text-xs font-semibold tracking-wider text-earth-500 uppercase">{title}</h3>
     <p className="mt-2 text-3xl font-bold text-earth-900">{value}</p>
     {subValue && <p className="mt-1 text-xs text-earth-400">{subValue}</p>}
@@ -141,28 +141,28 @@ const ProjectAnalysis = () => {
   if (loading) return <div className="p-10 text-center">売上データを分析中...</div>;
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="md:col-span-1">
+    <div className="flex flex-col gap-px bg-earth-200/60">
+      <div className="grid grid-cols-1 gap-px md:grid-cols-3">
+        <div className="p-5 md:col-span-1 bg-white/50 backdrop-blur-sm">
           <GoalProgressBar value={analysisData.currentMonthSales} goal={MONTHLY_SALES_GOAL} />
         </div>
         <KpiCard title="当月売上高" value={formatCurrency(analysisData.currentMonthSales)} />
         <KpiCard title="全体平均利益率" value={formatPercent(analysisData.averageMarginRate)} />
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div className="p-6 glass-panel">
+      <div className="grid grid-cols-1 gap-px lg:grid-cols-2">
+        <div className="p-6 bg-white/50 backdrop-blur-sm">
           <h3 className="mb-4 text-lg font-semibold text-earth-800">売上 前年比較</h3>
           <div className="h-80"><Chart type='bar' data={analysisData.salesChartData} options={{ responsive: true, maintainAspectRatio: false }} /></div>
         </div>
-        <div className="p-6 glass-panel">
+        <div className="p-6 bg-white/50 backdrop-blur-sm">
           <h3 className="mb-4 text-lg font-semibold text-earth-800">利益率 推移（{new Date().getFullYear()}年）</h3>
           <div className="h-80"><Line data={analysisData.marginRateChartData} options={{ responsive: true, maintainAspectRatio: false }} /></div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
-        <div className="p-6 glass-panel lg:col-span-2">
+      <div className="grid grid-cols-1 gap-px lg:grid-cols-5">
+        <div className="p-6 bg-white/50 backdrop-blur-sm lg:col-span-2">
           <h3 className="mb-4 text-lg font-semibold text-earth-800">クライアント別 売上ランキング (TOP5)</h3>
           <ul className="space-y-3">
             {analysisData.topClients.map(([name, sales], index) => (
@@ -173,7 +173,7 @@ const ProjectAnalysis = () => {
             ))}
           </ul>
         </div>
-        <div className="p-6 glass-panel lg:col-span-3">
+        <div className="p-6 bg-white/50 backdrop-blur-sm lg:col-span-3">
           <h3 className="mb-4 text-lg font-semibold text-earth-800">案件カテゴリ別 売上構成</h3>
           <div className="flex justify-center h-80">
             <Pie data={analysisData.categoryChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }} />
