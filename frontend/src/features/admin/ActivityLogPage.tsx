@@ -42,19 +42,19 @@ const ActivityLogPage = () => {
   }
 
   return (
-    <div className="w-full min-h-full p-4 space-y-4">
-      <div className="p-4 text-sm text-yellow-800 rounded-lg bg-yellow-50 border border-yellow-200">
+    <div className="w-full min-h-full">
+      <div className="px-4 py-2.5 text-sm text-yellow-800 bg-yellow-50/90 border-b border-yellow-200">
         <AlertTriangle className="inline w-4 h-4 mr-2" />
         このログはマスターアカウントのみ閲覧可能です。機密情報を含む場合があります。
       </div>
       
-      <div className="w-full overflow-hidden bg-white/40 backdrop-blur-sm border border-white/20 rounded-lg shadow-sm">
-        <ul className="divide-y divide-gray-200">
+      <div className="w-full min-h-full bg-white/40 backdrop-blur-sm border-b border-white/20">
+        <ul className="divide-y divide-gray-200/50">
           {logs.length === 0 ? (
             <p className="p-8 text-center text-gray-500">まだ実行ログはありません。</p>
           ) : (
             logs.map(log => (
-              <li key={log.id} className="p-4 transition-colors hover:bg-gray-50">
+              <li key={log.id} className="px-4 py-3 sm:px-6 transition-colors hover:bg-white/60">
                 <div className="flex items-start justify-between text-sm">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center mb-1 space-x-2 font-semibold text-gray-900">
