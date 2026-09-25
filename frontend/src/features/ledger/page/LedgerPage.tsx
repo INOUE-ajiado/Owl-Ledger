@@ -11,7 +11,7 @@ import { LedgerMonthNavigator } from './components/LedgerMonthNavigator';
 import { LedgerSummaryBar } from './components/LedgerSummaryBar';
 import { ProcessedReportsList } from './components/ProcessedReportsList';
 import { ApprovalLinkModal } from './components/ApprovalLinkModal';
-import { Info, Plus } from 'lucide-react';
+import { FilePlus2, Info, Plus } from 'lucide-react';
 
 // Hooks
 import { useLedgerData } from './hooks/useLedgerData';
@@ -136,8 +136,6 @@ const LedgerPage = () => {
 
   if (!hasLoaded) return <p className="p-10 text-center text-gray-500">読み込み中...</p>;
 
-  const showForm = canWrite && currentReport;
-
   return (
     <div className="w-full min-h-full pb-8">
       <div className="lg:sticky lg:top-0 z-20 bg-white/70 backdrop-blur-md border-b border-white/30 shadow-sm">
@@ -151,57 +149,78 @@ const LedgerPage = () => {
         />
       </div>
 
-      <div className={`transition-opacity ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
-        <ProcessedReportsList
-          reports={processedReports}
-          canWrite={canWrite}
-          isMasterUser={isMasterUser}
-          onShowApprovalLink={handleShowApprovalLink}
-          onSubmitToAccounting={actions.submitToAccounting}
-          onCopyUrl={(id) => copyUrlToClipboard(`${window.location.origin}/approval/${id}`)}
-          onDeleteReport={actions.deleteReport}
-        />
-
-        {currentReport ? (
-          <div className={`grid gap-4 px-0 sm:px-4 pt-3 ${showForm ? 'lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]' : ''}`}>
-            {showForm && (
-              <aside className="px-4 sm:px-0 lg:order-2 lg:sticky lg:top-40 lg:self-start">
-                <LedgerEntryForm
-                  currentReport={currentReport}
-                  subjects={subjects}
-                  editingEntry={editingEntry}
-                  onSave={(entry) => actions.saveEntry(currentReport, entry, editingEntry?.id)}
-                  onCancelEdit={() => setEditingEntry(null)}
-                  isLocked={currentReport.status !== '作成中'}
-                />
-              </aside>
+      <div className={`grid gap-4 px-0 sm:px-4 pt-3 transition-opacity ${canWrite ? 'lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]' : ''} ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
+        {/* 右: 入力エリア（下書きがあれば明細フォーム、なければ新規作成） */}
+        {canWrite && (
+          <aside className="px-4 sm:px-0 lg:order-2 lg:sticky lg:top-40 lg:self-start">
+            {currentReport ? (
+              <LedgerEntryForm
+                currentReport={currentReport}
+                subjects={subjects}
+                editingEntry={editingEntry}
+                onSave={(entry) => actions.saveEntry(currentReport, entry, editingEntry?.id)}
+                onCancelEdit={() => setEditingEntry(null)}
+                isLocked={currentReport.status !== '作成中'}
+              />
+            ) : (
+              <div className="p-6 text-center bg-white rounded-lg shadow">
+                <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-earth-50 text-earth-600">
+                  <FilePlus2 size={24} />
+                </div>
+                <h3 className="font-semibold text-earth-900">出納帳を新規作成</h3>
+                <p className="mt-2 text-sm text-earth-600">
+                  {processedReports.length > 0
+                    ? `${formatMonthLabel(currentMonth)}の提出済みレポートとは別に、新しい出納帳を作成できます。`
+                    : `${formatMonthLabel(currentMonth)}の出納帳はまだありません。`}
+                </p>
+                <p className="mt-1 text-xs text-earth-500">作成すると、この場所で明細を入力できます。</p>
+                <button onClick={() => actions.createNewReport(targetUserId, currentMonth)} className="inline-flex items-center justify-center w-full gap-1.5 px-6 py-2.5 mt-5 text-white bg-earth-600 rounded-md hover:bg-earth-700 shadow-lg transition-all active:scale-[0.98]">
+                  <Plus size={16} />
+                  新規作成
+                </button>
+              </div>
             )}
-            <div className="lg:order-1 min-w-0 overflow-hidden sm:rounded-lg border-y sm:border border-white/40 shadow-sm">
-              <LedgerList
-                report={currentReport}
-                onAttachFile={(entryId, file) => actions.attachFile(currentReport, entryId, file, user!.uid)}
-                isLocked={currentReport.status !== '作成中' || !canWrite}
-                onEdit={setEditingEntry}
-                onDelete={(entryId) => actions.deleteEntry(currentReport, entryId)}
-                editingEntryId={editingEntry?.id}
+          </aside>
+        )}
+
+        {/* 左: 確認エリア（提出済みレポート・明細一覧） */}
+        <div className="lg:order-1 min-w-0 space-y-4">
+          {processedReports.length > 0 && (
+            <div className="px-4 sm:px-0">
+              <ProcessedReportsList
+                reports={processedReports}
+                canWrite={canWrite}
+                isMasterUser={isMasterUser}
+                onShowApprovalLink={handleShowApprovalLink}
+                onSubmitToAccounting={actions.submitToAccounting}
+                onCopyUrl={(id) => copyUrlToClipboard(`${window.location.origin}/approval/${id}`)}
+                onDeleteReport={actions.deleteReport}
               />
             </div>
-          </div>
-        ) : (
-          canWrite && (
-            <div className="mx-4 mt-3 p-8 text-center bg-white/50 border border-dashed border-earth-300 rounded-lg">
-              <p className="text-earth-700">{formatMonthLabel(currentMonth)}の出納帳はまだありません。</p>
-              <button onClick={() => actions.createNewReport(targetUserId, currentMonth)} className="inline-flex items-center gap-1.5 px-6 py-2 mt-4 text-white bg-earth-600 rounded-md hover:bg-earth-700 shadow-lg transform hover:scale-[1.02] transition-all">
-                <Plus size={16} />
-                新規作成
-              </button>
-            </div>
-          )
-        )}
+          )}
 
-        {!canWrite && !currentReport && processedReports.length === 0 && (
-          <p className="py-12 text-center text-sm text-earth-500">{formatMonthLabel(currentMonth)}の出納帳はありません。</p>
-        )}
+          {currentReport && (
+            <section>
+              <h3 className="px-4 sm:px-0 mb-2 text-xs font-semibold tracking-wide text-earth-600">
+                明細（No.{currentReport.reportNumber} {currentReport.status}）
+              </h3>
+              <div className="overflow-hidden sm:rounded-lg border-y sm:border border-white/40 shadow-sm">
+                <LedgerList
+                  report={currentReport}
+                  onAttachFile={(entryId, file) => actions.attachFile(currentReport, entryId, file, user!.uid)}
+                  isLocked={currentReport.status !== '作成中' || !canWrite}
+                  onEdit={setEditingEntry}
+                  onDelete={(entryId) => actions.deleteEntry(currentReport, entryId)}
+                  editingEntryId={editingEntry?.id}
+                />
+              </div>
+            </section>
+          )}
+
+          {!currentReport && processedReports.length === 0 && (
+            <p className="py-12 text-center text-sm text-earth-500">{formatMonthLabel(currentMonth)}の出納帳はありません。</p>
+          )}
+        </div>
       </div>
 
       {!isMasterUser && (
