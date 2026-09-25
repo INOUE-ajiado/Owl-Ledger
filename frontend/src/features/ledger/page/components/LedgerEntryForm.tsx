@@ -193,12 +193,12 @@ export const LedgerEntryForm = ({ currentReport, subjects, editingEntry, onSave,
       {ocrPreviewUrl && (<div className="p-2 mb-4 rounded-md bg-gray-50"><img src={ocrPreviewUrl} alt="プレビュー" className="mx-auto rounded max-h-32" /></div>)}
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
           <div className="col-span-2">
             <input type="date" {...register("date", { required: true })} className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50" />
           </div>
 
-          <div className="col-span-2 space-y-2">
+          <div className="col-span-2 space-y-2 md:col-span-4">
             {subjectFields.map((field, index) => (
               <div key={field.id} className="flex items-center space-x-2">
                 <select {...register(`subject.${index}.value` as const, { required: true })} className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50">
@@ -215,16 +215,16 @@ export const LedgerEntryForm = ({ currentReport, subjects, editingEntry, onSave,
             ))}
           </div>
 
-          <div className="col-span-2">
+          <div className="col-span-2 md:col-span-6">
             <textarea {...register("description", { required: true })} placeholder="摘要" className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50" rows={1} />
           </div>
-          <div className="col-span-2">
+          <div className="col-span-2 md:col-span-6">
             <input {...register("payee")} placeholder="支払い先" className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50" />
           </div>
-          <div>
+          <div className="md:col-span-3">
             <input type="number" {...register("income", { valueAsNumber: true })} placeholder="入金額" className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50" />
           </div>
-          <div>
+          <div className="md:col-span-3">
             <input type="number" {...register("expense", { valueAsNumber: true })} placeholder="出金額" className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50" />
           </div>
         </div>

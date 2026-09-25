@@ -23,10 +23,7 @@ export const ProcessedReportsList = ({
 
   return (
     <section>
-      <h3 className="mb-2 text-xs font-semibold tracking-wide text-earth-600">
-        提出済みレポート（{reports.length}件）
-      </h3>
-      <ul className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
         {reports.map(report => {
           const { income, expense } = sumEntries(report);
           return (
