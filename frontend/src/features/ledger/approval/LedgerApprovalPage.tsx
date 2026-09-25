@@ -176,7 +176,7 @@ const LedgerApprovalPage = () => {
   if (!report) return <div className="p-10 font-bold text-center">レポートが見つかりません。</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <style>{`
         @media print { 
             .no-print { display: none !important; } 
@@ -257,17 +257,19 @@ const LedgerApprovalPage = () => {
         />
       )}
 
-      <div className="relative hidden sm:flex flex-col p-2 md:p-8 md:flex-row md:justify-center">
+      <div className="relative hidden sm:flex flex-col md:flex-row">
         <ApprovalSidebar
           report={report}
           selectedReceiptUrl={selectedReceiptUrl}
           isStatusOpen={isStatusOpen}
           onModalOpen={() => setIsModalOpen(true)}
         />
-        <div ref={containerRef} className="flex justify-center flex-grow mt-4 overflow-hidden md:mt-0">
-          <div ref={componentRef} className="mx-auto transition-transform duration-200">
+        <div ref={containerRef} className="flex justify-center flex-grow min-w-0 overflow-hidden">
+          {/* 横幅が狭いときは最小幅を保ったまま縮小表示する (applyScale) */}
+          <div ref={componentRef} className="w-full min-w-[820px] print:min-w-0 transition-transform duration-200">
             <LedgerReportSheet
               report={report}
+              selectedReceiptUrl={selectedReceiptUrl}
               onSelectReceipt={(url) => setSelectedReceiptUrl(url)}
             />
           </div>
