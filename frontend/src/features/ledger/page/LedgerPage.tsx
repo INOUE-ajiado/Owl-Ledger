@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppOutletContext, useModal, useAuth } from '../../../contexts';
 import type { LedgerEntry } from '../../../types';
 
@@ -6,15 +7,18 @@ import type { LedgerEntry } from '../../../types';
 import LedgerList from '../LedgerList';
 import SubjectManager from '../SubjectManager';
 import { LedgerEntryForm } from './components/LedgerEntryForm';
-import { LedgerHeaderControls } from './components/LedgerHeaderControls';
+import { LedgerMonthNavigator } from './components/LedgerMonthNavigator';
+import { LedgerSummaryBar } from './components/LedgerSummaryBar';
 import { ProcessedReportsList } from './components/ProcessedReportsList';
 import { ApprovalLinkModal } from './components/ApprovalLinkModal';
-import { Info } from 'lucide-react';
+import { Info, Plus } from 'lucide-react';
 
 // Hooks
 import { useLedgerData } from './hooks/useLedgerData';
 import { useLedgerActions } from './hooks/useLedgerActions';
 import { useLedgerCSV } from './hooks/useLedgerCSV';
+import { useLedgerOverview } from './hooks/useLedgerOverview';
+import { formatMonthLabel, shiftMonth, toMonthKey } from './ledgerUtils';
 
 const LedgerPage = () => {
   const { setHeaderProps, permissions } = useAppOutletContext();
@@ -22,7 +26,10 @@ const LedgerPage = () => {
   const { user } = useAuth();
 
   // State
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+  // 表示月は URL (?month=YYYY-MM) に保持し、再読み込みやブックマークでも同じ月を開けるようにする
+  const [searchParams, setSearchParams] = useSearchParams();
+  const monthParam = searchParams.get('month');
+  const currentMonth = monthParam && /^\d{4}-(0[1-9]|1[0-2])$/.test(monthParam) ? monthParam : toMonthKey(new Date());
   const [targetUserId, setTargetUserId] = useState<string>('');
   const [editingEntry, setEditingEntry] = useState<LedgerEntry | null>(null);
   const [isSubjectManagerOpen, setIsSubjectManagerOpen] = useState(false);
@@ -40,15 +47,39 @@ const LedgerPage = () => {
 
   // カスタムフックの呼び出し
   const { currentReport, processedReports, subjects, usersList, loading } = useLedgerData(currentMonth, targetUserId, isMasterUser);
+  const overview = useLedgerOverview(targetUserId);
   const actions = useLedgerActions();
   const { exportCSV } = useLedgerCSV();
 
   // イベントハンドラ
-  const changeMonth = (amount: number) => {
-    const newDate = new Date(currentMonth + '-01');
-    newDate.setMonth(newDate.getMonth() + amount);
-    setCurrentMonth(newDate.toISOString().slice(0, 7));
+  const selectMonth = (month: string) => {
+    if (month === currentMonth) return;
+    setEditingEntry(null);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('month', month);
+      return next;
+    }, { replace: true });
   };
+
+  // 初回のみ全体をローディング表示し、月切り替え時は表示を残したまま薄く表示する
+  const [hasLoaded, setHasLoaded] = useState(false);
+  useEffect(() => {
+    if (!loading) setHasLoaded(true);
+  }, [loading]);
+
+  // ← / → キーで前月・翌月へ（入力中は無効）
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.key === 'ArrowLeft') selectMonth(shiftMonth(currentMonth, -1));
+      if (e.key === 'ArrowRight') selectMonth(shiftMonth(currentMonth, 1));
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
 
   const handleShowApprovalLink = (reportId: string) => {
     const url = `${window.location.origin}/approval/${reportId}`;
@@ -103,55 +134,24 @@ const LedgerPage = () => {
     });
   }, [setHeaderProps, isSubjectManagerOpen, currentReport, processedReports, canWrite, isMasterUser, targetUserId, usersList, user, exportCSV]);
 
-  if (loading) return <p className="p-10 text-center text-gray-500">読み込み中...</p>;
+  if (!hasLoaded) return <p className="p-10 text-center text-gray-500">読み込み中...</p>;
+
+  const showForm = canWrite && currentReport;
 
   return (
-    <div className="w-full min-h-full space-y-4">
-      {!isMasterUser && (
-        <div className="flex items-center gap-2 p-3 text-xs text-earth-600 border border-white/20 rounded-lg bg-white/20 backdrop-blur-sm">
-          <Info size={16} className="flex-shrink-0 text-blue-500" />
-          <p>登録した出納帳データは、ご本人と管理者のみが閲覧・管理できます。</p>
-        </div>
-      )}
-
-      {canWrite && currentReport && (
-        <LedgerEntryForm
-          currentReport={currentReport}
-          subjects={subjects}
-          editingEntry={editingEntry}
-          onSave={(entry) => actions.saveEntry(currentReport, entry, editingEntry?.id)}
-          onCancelEdit={() => setEditingEntry(null)}
-          isLocked={currentReport.status !== '作成中'}
-        />
-      )}
-
-      <div className="w-full bg-white/40 backdrop-blur-sm border-y border-white/20">
-        <LedgerHeaderControls
+    <div className="w-full min-h-full pb-8">
+      <div className="lg:sticky lg:top-0 z-20 bg-white/70 backdrop-blur-md border-b border-white/30 shadow-sm">
+        <LedgerMonthNavigator currentMonth={currentMonth} overview={overview} onSelectMonth={selectMonth} />
+        <LedgerSummaryBar
           currentMonth={currentMonth}
-          onChangeMonth={changeMonth}
           currentReport={currentReport}
           onDeleteReport={() => currentReport && actions.deleteReport(currentReport)}
           onSubmitForApproval={handleSubmitForApproval}
           canWrite={canWrite}
         />
+      </div>
 
-        {currentReport ? (
-          <LedgerList
-            report={currentReport}
-            onAttachFile={(entryId, file) => actions.attachFile(currentReport, entryId, file, user!.uid)}
-            isLocked={currentReport.status !== '作成中' || !canWrite}
-            onEdit={setEditingEntry}
-            onDelete={(entryId) => actions.deleteEntry(currentReport, entryId)}
-          />
-        ) : (
-          canWrite && (
-            <div className="p-6 text-center">
-              <p className="text-gray-600">この月の新しい出納帳を作成しますか？</p>
-              <button onClick={() => actions.createNewReport(targetUserId, currentMonth)} className="px-6 py-2 mt-4 text-white bg-earth-600 rounded-md hover:bg-earth-700 shadow-lg transform hover:scale-[1.02] transition-all">新規作成</button>
-            </div>
-          )
-        )}
-
+      <div className={`transition-opacity ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
         <ProcessedReportsList
           reports={processedReports}
           canWrite={canWrite}
@@ -161,7 +161,55 @@ const LedgerPage = () => {
           onCopyUrl={(id) => copyUrlToClipboard(`${window.location.origin}/approval/${id}`)}
           onDeleteReport={actions.deleteReport}
         />
+
+        {currentReport ? (
+          <div className={`grid gap-4 px-0 sm:px-4 pt-3 ${showForm ? 'lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]' : ''}`}>
+            {showForm && (
+              <aside className="px-4 sm:px-0 lg:order-2 lg:sticky lg:top-40 lg:self-start">
+                <LedgerEntryForm
+                  currentReport={currentReport}
+                  subjects={subjects}
+                  editingEntry={editingEntry}
+                  onSave={(entry) => actions.saveEntry(currentReport, entry, editingEntry?.id)}
+                  onCancelEdit={() => setEditingEntry(null)}
+                  isLocked={currentReport.status !== '作成中'}
+                />
+              </aside>
+            )}
+            <div className="lg:order-1 min-w-0 overflow-hidden sm:rounded-lg border-y sm:border border-white/40 shadow-sm">
+              <LedgerList
+                report={currentReport}
+                onAttachFile={(entryId, file) => actions.attachFile(currentReport, entryId, file, user!.uid)}
+                isLocked={currentReport.status !== '作成中' || !canWrite}
+                onEdit={setEditingEntry}
+                onDelete={(entryId) => actions.deleteEntry(currentReport, entryId)}
+                editingEntryId={editingEntry?.id}
+              />
+            </div>
+          </div>
+        ) : (
+          canWrite && (
+            <div className="mx-4 mt-3 p-8 text-center bg-white/50 border border-dashed border-earth-300 rounded-lg">
+              <p className="text-earth-700">{formatMonthLabel(currentMonth)}の出納帳はまだありません。</p>
+              <button onClick={() => actions.createNewReport(targetUserId, currentMonth)} className="inline-flex items-center gap-1.5 px-6 py-2 mt-4 text-white bg-earth-600 rounded-md hover:bg-earth-700 shadow-lg transform hover:scale-[1.02] transition-all">
+                <Plus size={16} />
+                新規作成
+              </button>
+            </div>
+          )
+        )}
+
+        {!canWrite && !currentReport && processedReports.length === 0 && (
+          <p className="py-12 text-center text-sm text-earth-500">{formatMonthLabel(currentMonth)}の出納帳はありません。</p>
+        )}
       </div>
+
+      {!isMasterUser && (
+        <p className="flex items-center justify-center gap-1.5 px-4 mt-6 text-xs text-earth-500">
+          <Info size={14} className="flex-shrink-0" />
+          登録した出納帳データは、ご本人と管理者のみが閲覧・管理できます。
+        </p>
+      )}
 
       {showApprovalLinkModal && (
         <ApprovalLinkModal
