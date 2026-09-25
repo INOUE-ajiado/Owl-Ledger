@@ -16,11 +16,22 @@ export const formatMonthLabel = (month: string) => {
 
 export const formatYen = (value: number) => `¥${new Intl.NumberFormat('ja-JP').format(value)}`;
 
+// 古いデータで金額が文字列として保存されていても文字列連結にならないよう数値化する
+const toAmount = (value: unknown) => Number(value) || 0;
+
 export const sumEntries = (report: LedgerReport) => {
-  const income = report.entries.reduce((sum, e) => sum + (e.income || 0), 0);
-  const expense = report.entries.reduce((sum, e) => sum + (e.expense || 0), 0);
+  const income = (report.entries ?? []).reduce((sum, e) => sum + toAmount(e.income), 0);
+  const expense = (report.entries ?? []).reduce((sum, e) => sum + toAmount(e.expense), 0);
   return { income, expense, balance: income - expense };
 };
+
+/** 複数レポート（その月の作成中＋提出済み）をまとめて集計する */
+export const sumReports = (reports: LedgerReport[]) =>
+  reports.reduce((acc, report) => {
+    const { income, expense } = sumEntries(report);
+    const count = acc.count + (report.entries?.length ?? 0);
+    return { count, income: acc.income + income, expense: acc.expense + expense, balance: acc.balance + income - expense };
+  }, { count: 0, income: 0, expense: 0, balance: 0 });
 
 export const STATUS_STYLES: Record<LedgerReport['status'], { badge: string; dot: string }> = {
   '作成中': { badge: 'bg-earth-100 text-earth-800', dot: 'bg-earth-500' },

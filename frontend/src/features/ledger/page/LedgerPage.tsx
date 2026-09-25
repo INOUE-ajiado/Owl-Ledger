@@ -146,6 +146,7 @@ const LedgerPage = () => {
         <LedgerSummaryBar
           currentMonth={currentMonth}
           currentReport={currentReport}
+          processedReports={processedReports}
           onDeleteReport={() => currentReport && actions.deleteReport(currentReport)}
           onSubmitForApproval={handleSubmitForApproval}
           canWrite={canWrite}

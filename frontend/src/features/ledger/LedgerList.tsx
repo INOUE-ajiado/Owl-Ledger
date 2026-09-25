@@ -111,8 +111,8 @@ const LedgerList = ({ report, onAttachFile, isLocked, onEdit, onDelete, editingE
                 <td className="px-3 py-2 whitespace-pre-line text-earth-800">{subjectText(entry)}</td>
                 <td className="px-3 py-2 whitespace-pre-line">{entry.description}</td>
                 <td className="px-3 py-2 text-earth-700">{entry.payee}</td>
-                <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap text-blue-700">{entry.income > 0 ? entry.income.toLocaleString() : ''}</td>
-                <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap text-red-700">{entry.expense > 0 ? entry.expense.toLocaleString() : ''}</td>
+                <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap text-blue-700">{Number(entry.income) > 0 ? Number(entry.income).toLocaleString() : ''}</td>
+                <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap text-red-700">{Number(entry.expense) > 0 ? Number(entry.expense).toLocaleString() : ''}</td>
                 <td className="px-2 py-1 whitespace-nowrap">{renderActions(entry)}</td>
               </tr>
             ))}
@@ -142,8 +142,8 @@ const LedgerList = ({ report, onAttachFile, isLocked, onEdit, onDelete, editingE
                 {entry.payee && <p className="text-xs text-earth-500 truncate">{entry.payee}</p>}
               </div>
               <div className="text-right flex-shrink-0 tabular-nums">
-                {entry.income > 0 && <p className="text-sm font-semibold text-blue-700">+{formatYen(entry.income)}</p>}
-                {entry.expense > 0 && <p className="text-sm font-semibold text-red-700">−{formatYen(entry.expense)}</p>}
+                {Number(entry.income) > 0 && <p className="text-sm font-semibold text-blue-700">+{formatYen(Number(entry.income))}</p>}
+                {Number(entry.expense) > 0 && <p className="text-sm font-semibold text-red-700">−{formatYen(Number(entry.expense))}</p>}
               </div>
             </div>
             <div className="mt-1 -mr-1.5">{renderActions(entry)}</div>

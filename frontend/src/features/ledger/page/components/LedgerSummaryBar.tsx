@@ -1,10 +1,11 @@
 import { Send, Trash2 } from 'lucide-react';
 import type { LedgerReport } from '../../../../types';
-import { STATUS_STYLES, formatMonthLabel, formatYen, sumEntries } from '../ledgerUtils';
+import { STATUS_STYLES, formatMonthLabel, formatYen, sumReports } from '../ledgerUtils';
 
 interface LedgerSummaryBarProps {
   currentMonth: string;
   currentReport: LedgerReport | null;
+  processedReports: LedgerReport[];
   onDeleteReport: () => void;
   onSubmitForApproval: () => void;
   canWrite: boolean;
@@ -20,11 +21,14 @@ const Stat = ({ label, value, className = '' }: { label: string; value: string; 
 export const LedgerSummaryBar = ({
   currentMonth,
   currentReport,
+  processedReports,
   onDeleteReport,
   onSubmitForApproval,
   canWrite
 }: LedgerSummaryBarProps) => {
-  const totals = currentReport ? sumEntries(currentReport) : null;
+  // 月の集計は作成中・提出済みを含む、その月の全レポートが対象
+  const monthReports = currentReport ? [currentReport, ...processedReports] : processedReports;
+  const totals = sumReports(monthReports);
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between border-t border-white/30">
@@ -40,14 +44,17 @@ export const LedgerSummaryBar = ({
         )}
       </div>
 
-      {totals && currentReport && (
-        <div className="grid grid-cols-4 gap-4 lg:gap-8 lg:flex-1 lg:max-w-xl">
-          <Stat label="件数" value={`${currentReport.entries.length}件`} className="text-earth-800" />
+      <div className="lg:flex-1 lg:max-w-xl">
+        <p className="mb-1 text-[11px] text-earth-500">
+          月合計（{monthReports.length > 0 ? `${monthReports.length}件の出納帳・提出済み含む` : '出納帳なし'}）
+        </p>
+        <div className="grid grid-cols-4 gap-4 lg:gap-8">
+          <Stat label="件数" value={`${totals.count}件`} className="text-earth-800" />
           <Stat label="入金" value={formatYen(totals.income)} className="text-blue-700" />
           <Stat label="出金" value={formatYen(totals.expense)} className="text-red-700" />
           <Stat label="差引" value={formatYen(totals.balance)} className={totals.balance < 0 ? 'text-red-700' : 'text-earth-900'} />
         </div>
-      )}
+      </div>
 
       {currentReport && currentReport.status === '作成中' && canWrite && (
         <div className="flex items-center gap-2">
