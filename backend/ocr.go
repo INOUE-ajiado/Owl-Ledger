@@ -4,12 +4,17 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
+	"time"
 )
+
+var geminiHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
 // Gemini API Request Payload Structures
 type Part struct {
@@ -47,14 +52,19 @@ type ResponsePart struct {
 	Text string `json:"text"`
 }
 
-// CORS ヘッダーを設定するユーティリティ
+// 呼び出しを許可するオリジン (本番は Firebase Hosting 経由の同一オリジンなので CORS は不要だが、開発用に限定して許可)
+var allowedOrigins = map[string]bool{
+	"https://test-54084-466403.web.app":         true,
+	"https://test-54084-466403.firebaseapp.com": true,
+	"http://localhost:5173":                     true,
+}
+
+// CORS ヘッダーを設定するユーティリティ (許可リストにあるオリジンのみ)
 func setupCORS(w http.ResponseWriter, r *http.Request) bool {
 	origin := r.Header.Get("Origin")
-	if origin != "" {
+	if allowedOrigins[origin] {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	} else {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Vary", "Origin")
 	}
 
 	if r.Method == "OPTIONS" {
@@ -64,6 +74,11 @@ func setupCORS(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	return false
+}
+
+// 受け付けるファイル形式 (レシート画像/PDF)
+func isAllowedReceiptType(mimeType string) bool {
+	return strings.HasPrefix(mimeType, "image/") || mimeType == "application/pdf"
 }
 
 // OCRAPIHandler handles the receipt OCR request
@@ -77,7 +92,17 @@ func OCRAPIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Max 10MB file
+	// ログイン済みの社員以外は利用不可 (Gemini API の不正利用を防ぐ)
+	if err := requireStaff(r.Context(), r); err != nil {
+		if !errors.Is(err, errUnauthorized) {
+			fmt.Fprintf(os.Stderr, "auth check failed: %v\n", err)
+		}
+		http.Error(w, "認証が必要です。", http.StatusUnauthorized)
+		return
+	}
+
+	// Max 10MB file (リクエスト全体もそれ以上は読まない)
+	r.Body = http.MaxBytesReader(w, r.Body, 11<<20)
 	err := r.ParseMultipartForm(10 << 20)
 	if err != nil {
 		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
@@ -102,6 +127,10 @@ func OCRAPIHandler(w http.ResponseWriter, r *http.Request) {
 	if mimeType == "" {
 		mimeType = "image/jpeg" // Fallback
 	}
+	if !isAllowedReceiptType(mimeType) {
+		http.Error(w, "画像またはPDFのみ対応しています。", http.StatusBadRequest)
+		return
+	}
 
 	base64Image := base64.StdEncoding.EncodeToString(buf.Bytes())
 
@@ -121,8 +150,13 @@ func OCRAPIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use stable v1 gemini-1.5-flash
-	apiUrl := fmt.Sprintf("https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=%s", apiKey)
+	// モデルは環境変数で変更可能 (既定は従来どおり gemini-1.5-flash)
+	model := os.Getenv("GEMINI_MODEL")
+	if model == "" {
+		model = "gemini-1.5-flash"
+	}
+	// API キーは URL に含めずヘッダーで送る (エラーメッセージやログに漏れないように)
+	apiUrl := fmt.Sprintf("https://generativelanguage.googleapis.com/v1/models/%s:generateContent", model)
 
 	payload := GeminiRequest{
 		Contents: []Content{
@@ -141,9 +175,18 @@ func OCRAPIHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonPayload))
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, apiUrl, bytes.NewBuffer(jsonPayload))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("AI APIへの接続エラー: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Failed to build request", http.StatusInternalServerError)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", apiKey)
+
+	resp, err := geminiHTTPClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Gemini API connection error: %v\n", err)
+		http.Error(w, "AI APIへの接続に失敗しました。", http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()

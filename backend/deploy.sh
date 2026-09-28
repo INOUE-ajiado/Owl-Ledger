@@ -3,12 +3,14 @@
 # デフォルト設定
 PROJECT_ID="test-54084-466403"
 REGION="asia-northeast1"
+# go.mod の go バージョン (1.25) に合わせたランタイム
+RUNTIME="go125"
 
 echo "=== Owl Ledger Backend (Go) デプロイスクリプト ==="
 
 # デプロイ前にビルドテスト
-echo "ローカルでビルドテストを実行中..."
-go build -o /dev/null ./cmd/server
+echo "ローカルでビルド・テストを実行中..."
+go build -o /dev/null ./cmd/server && go test ./...
 if [ $? -ne 0 ]; then
   echo "❌ ビルドエラーが発生したため、デプロイを中止します。"
   exit 1
@@ -38,12 +40,12 @@ if [ ! -z "$GEMINI_API_KEY" ]; then
   echo "🚀 api (HTTPSトリガー) をデプロイ中..."
   gcloud functions deploy api \
     --gen2 \
-    --runtime=go123 \
+    --runtime=$RUNTIME \
     --region=$REGION \
     --trigger-http \
     --allow-unauthenticated \
     --entry-point=api \
-    --set-env-vars=GEMINI_API_KEY="$GEMINI_API_KEY"
+    --set-env-vars=GEMINI_API_KEY="$GEMINI_API_KEY",FIREBASE_PROJECT_ID="$PROJECT_ID"
 else
   echo "⚠️ Gemini API キーがないため、api (HTTPSトリガー) のデプロイをスキップします。"
 fi
@@ -52,7 +54,7 @@ fi
 echo "🚀 onOrderConfirmationApproved (Firestoreトリガー) をデプロイ中..."
 gcloud functions deploy onOrderConfirmationApproved \
   --gen2 \
-  --runtime=go123 \
+  --runtime=$RUNTIME \
   --region=$REGION \
   --trigger-event-filters="type=google.cloud.firestore.document.v1.updated" \
   --trigger-event-filters="database=(default)" \
@@ -63,7 +65,7 @@ gcloud functions deploy onOrderConfirmationApproved \
 echo "🚀 onLedgerApproved (Firestoreトリガー) をデプロイ中..."
 gcloud functions deploy onLedgerApproved \
   --gen2 \
-  --runtime=go123 \
+  --runtime=$RUNTIME \
   --region=$REGION \
   --trigger-event-filters="type=google.cloud.firestore.document.v1.updated" \
   --trigger-event-filters="database=(default)" \
@@ -74,7 +76,7 @@ gcloud functions deploy onLedgerApproved \
 echo "🚀 onLedgerSubmittedToAccounting (Firestoreトリガー) をデプロイ中..."
 gcloud functions deploy onLedgerSubmittedToAccounting \
   --gen2 \
-  --runtime=go123 \
+  --runtime=$RUNTIME \
   --region=$REGION \
   --trigger-event-filters="type=google.cloud.firestore.document.v1.updated" \
   --trigger-event-filters="database=(default)" \
