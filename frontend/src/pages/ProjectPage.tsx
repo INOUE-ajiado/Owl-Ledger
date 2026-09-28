@@ -27,6 +27,11 @@ const OrderStatusBadge = ({ status }: { status: '承認待ち' | '承認済み' 
     );
 };
 
+// 検索用の正規化: 全角/半角を揃え(NFKC)、小文字化し、カタカナをひらがなに寄せる
+const normalizeForSearch = (text: string) =>
+    text.normalize('NFKC').toLowerCase()
+        .replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+
 // ヘッダー(AppLayout)に描画されるため、親の state を value に直接使うと反映が1レンダー遅れ、
 // IME 変換中に古い値で上書きされて日本語入力が壊れる。入力値はこのコンポーネント内で保持する。
 const SearchInput = ({ onChange }: { onChange: (value: string) => void }) => {
@@ -162,12 +167,12 @@ const ProjectPage = () => {
         const sortedUnlinked = sortProjects(unlinkedProjects);
         displayList = [...displayList, ...sortedUnlinked];
 
+        const normalizedSearch = normalizeForSearch(searchTerm);
         return displayList.filter(project => {
             const statusMatch = statusFilter === 'すべて' || project.status === statusFilter;
-            const searchMatch = searchTerm === '' ||
-                project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                project.projectId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                project.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+            const searchMatch = normalizedSearch === '' ||
+                [project.title, project.projectId, project.clientName]
+                    .some(text => normalizeForSearch(text ?? '').includes(normalizedSearch));
             return statusMatch && searchMatch;
         });
     }, [projects, searchTerm, statusFilter, sortProjects]);
