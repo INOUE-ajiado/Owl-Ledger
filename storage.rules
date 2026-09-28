@@ -1,9 +1,33 @@
 rules_version = '2';
 
+// 領収書などの添付ファイルは社員 (permissions 登録済み) のみ扱える。
+// 承認ページ (匿名) での表示は、トークン付きのダウンロードURL経由なのでこのルールの対象外。
 service firebase.storage {
   match /b/{bucket}/o {
+
+    function isStaff() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true
+        && firestore.exists(/databases/(default)/documents/permissions/$(request.auth.token.email));
+    }
+
+    match /receipt-images/{uid}/{fileName} {
+      allow read: if isStaff();
+      // アップロードは自分のフォルダにのみ・20MB以下。
+      // ブラウザで開くとスクリプトが動く形式 (HTML/SVG/XML/JS) は禁止
+      allow create, update: if isStaff()
+        && request.auth.uid == uid
+        && request.resource.size < 20 * 1024 * 1024
+        && !request.resource.contentType.lower().matches('(text/html|application/xhtml\\+xml|image/svg\\+xml|text/xml|application/xml|(text|application)/(x-)?(java|ecma)script)(;.*)?');
+      // 出納帳の削除時に他の社員が添付したファイルも削除するため、社員なら削除可
+      allow delete: if isStaff();
+    }
+
+    // 上記以外のパスはすべて拒否
     match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

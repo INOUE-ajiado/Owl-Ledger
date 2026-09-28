@@ -1,0 +1,13 @@
+{
+  "name": "owl-ledger-rules-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "test:emulator": "cd ../.. && npx -y firebase-tools emulators:exec --only firestore,storage --project demo-owl-ledger \"cd tests/rules && node --test\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.1.0"
+  }
+}

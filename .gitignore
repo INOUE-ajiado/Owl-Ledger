@@ -76,3 +76,5 @@ password/
 
 # Compiled binaries
 backend/main
+# 社内資料 (リポジトリに含めない)
+security_report_for_vendor.html
