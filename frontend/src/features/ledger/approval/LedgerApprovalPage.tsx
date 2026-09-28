@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { doc, getDoc, updateDoc, Timestamp, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { db, auth } from '../../../api/firebase';
+import { isSafeReceiptUrl } from '../../../utils/security';
 import type { LedgerEntry, LedgerReport, UserPermissions } from '../../../types';
 import ProgressBar from '../../../components/ProgressBar';
 import { Menu, X, Printer, CheckCircle, Send } from 'lucide-react';
@@ -102,6 +103,9 @@ const LedgerApprovalPage = () => {
       unsubscribeReport = onSnapshot(reportRef, (docSnap) => {
         if (docSnap.exists()) {
           const reportData = { id: docSnap.id, ...docSnap.data() } as LedgerReport;
+          // Storage 以外のURL (改ざんされたデータ) は表示・埋め込みしない
+          reportData.entries = (reportData.entries || []).map(e =>
+            isSafeReceiptUrl(e.receiptImageUrl) ? e : { ...e, receiptImageUrl: undefined });
           setReport(reportData);
           if (reportData.entries.length > 0 && reportData.entries[0].receiptImageUrl && !selectedReceiptUrl) {
             setSelectedReceiptUrl(reportData.entries[0].receiptImageUrl);

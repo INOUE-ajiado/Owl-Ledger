@@ -4,6 +4,7 @@ import { db, auth } from '../../../../api/firebase';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import type { Project, Client } from '../../../../types';
 import { recordLog } from '../../../../api/logging';
+import { verifyPassword } from '../../../../utils/security';
 
 export const useOrderApprovalData = (projectId: string | undefined) => {
     const [project, setProject] = useState<Project | null>(null);
@@ -17,7 +18,6 @@ export const useOrderApprovalData = (projectId: string | undefined) => {
         let unsubscribeProject: (() => void) | null = null;
 
         const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-            console.log("【Debug】Auth state changed. User:", user ? user.uid : "No user");
 
             if (!user) {
                 signInAnonymously(auth).then(() => startListening(true)).catch((e) => {
@@ -33,8 +33,6 @@ export const useOrderApprovalData = (projectId: string | undefined) => {
 
             // 以前のリスナーがあれば解除
             if (unsubscribeProject) unsubscribeProject();
-
-            console.log("【Debug】Starting listener for project:", projectId);
             unsubscribeProject = onSnapshot(doc(db, 'projects', projectId), async (snapshot) => {
                 if (!isMounted) return;
 
@@ -57,7 +55,7 @@ export const useOrderApprovalData = (projectId: string | undefined) => {
 
                 // パスワード認証ロジック（ステータス変更時にも維持される必要があるが、初期化時のみ実行したい場合は工夫が必要）
                 // ただし、現在の実装に合わせて簡素化
-                handleVerification(projectData);
+                await handleVerification(projectData);
                 setLoading(false);
             }, (err) => {
                 if (isMounted) setError(`データ取得エラー: ${err.message}`);
@@ -65,13 +63,13 @@ export const useOrderApprovalData = (projectId: string | undefined) => {
             });
         };
 
-        const handleVerification = (projectData: Project) => {
-            if (projectData.previewPassword) {
+        const handleVerification = async (projectData: Project) => {
+            if (projectData.previewPasswordHash || projectData.previewPassword) {
                 // すでに検証済みならスキップ
                 if (isVerified) return;
 
                 const password = window.prompt("この受注伝票はロックされています。パスワードを入力してください:");
-                if (password === projectData.previewPassword) {
+                if (await verifyPassword(password, projectData.id, { hash: projectData.previewPasswordHash, legacyPlain: projectData.previewPassword })) {
                     setIsVerified(true);
                     setError(null);
                     recordLog({

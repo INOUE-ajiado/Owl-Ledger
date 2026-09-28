@@ -15,16 +15,12 @@ interface LogData {
  * 匿名ユーザーによる閲覧イベントから管理者による操作まで、全てのログを扱います。
  */
 export const recordLog = async (data: LogData) => {
-  // デバッグ用：呼び出しの確認
-  console.log("【Log Process】Initiating log for action:", data.action);
-
   try {
     // ユーザー情報の取得を試行
     let currentUser = auth.currentUser;
 
     // 匿名認証直後などのタイミングで currentUser が null の場合があるため、最大1秒待機
     if (!currentUser) {
-      console.warn("【Log Process】User context not found. Waiting for authentication...");
       for (let i = 0; i < 5; i++) {
         await new Promise(resolve => setTimeout(resolve, 200));
         currentUser = auth.currentUser;
@@ -43,8 +39,6 @@ export const recordLog = async (data: LogData) => {
       userId: uid,
       userEmail: email,
     });
-    
-    console.log("【Log Process】Successfully recorded to activityLogs.");
     
   } catch (error) {
     // セキュリティルールやネットワークエラー等による失敗のキャッチ

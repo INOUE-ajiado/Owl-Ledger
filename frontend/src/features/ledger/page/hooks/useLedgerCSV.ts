@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { LedgerReport } from '../../../../types';
 import { useModal } from '../../../../contexts';
+import { toCsvCell } from '../../../../utils/security';
 
 export const useLedgerCSV = () => {
   const { showModal } = useModal();
@@ -12,21 +13,16 @@ export const useLedgerCSV = () => {
     }
     const headers = ['日付', '科目', '内容', '支払い先', '入金(¥)', '出金(¥)', 'レシートURL'];
     const rows = report.entries.map(e => {
-      // ★ 修正: any を具体的な型に変更
-      const escapeCSV = (str: string | number | undefined | null | (string | number)[]) => {
-        if (str === undefined || str === null) return '""';
-        let stringValue = String(str);
-        if (Array.isArray(str)) stringValue = str.join(', ');
-        return `"${stringValue.replace(/"/g, '""')}"`;
-      }
+      // 数式として実行されないよう無害化してから出力する
+      const escapeCSV = toCsvCell;
       return [
-        e.date, 
+        escapeCSV(e.date), 
         escapeCSV(e.subject), 
         escapeCSV(e.description), 
         escapeCSV(e.payee), 
         e.income, 
         e.expense, 
-        e.receiptImageUrl || ''
+        escapeCSV(e.receiptImageUrl || '')
       ];
     });
 

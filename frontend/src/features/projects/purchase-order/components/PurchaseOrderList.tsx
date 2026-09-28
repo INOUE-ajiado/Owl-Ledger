@@ -66,7 +66,7 @@ export const PurchaseOrderList = ({
               </div>
               <div className="flex items-center justify-center gap-2 mt-3">
                 {issuedPO && !isInternalSale && (
-                  <button onClick={() => onOpenPasswordModal(issuedPO)} className={`p-2 rounded-md hover:bg-blue-100 ${issuedPO.password ? 'text-yellow-600' : 'text-gray-400'}`}>
+                  <button onClick={() => onOpenPasswordModal(issuedPO)} className={`p-2 rounded-md hover:bg-blue-100 ${(issuedPO.passwordHash || issuedPO.password) ? 'text-yellow-600' : 'text-gray-400'}`}>
                     <KeyRound size={18} />
                   </button>
                 )}
@@ -100,7 +100,7 @@ export const PurchaseOrderList = ({
                   <input type="checkbox" checked={isChecked} readOnly className="w-5 h-5 pointer-events-none" />
                 ) : issuedPO ? (
                   !isInternalSale ? (
-                    <button onClick={(e) => { e.stopPropagation(); onOpenPasswordModal(issuedPO);}} className={`p-1 rounded-md hover:bg-gray-100 ${issuedPO.password ? 'text-yellow-600' : 'text-gray-400'}`}>
+                    <button onClick={(e) => { e.stopPropagation(); onOpenPasswordModal(issuedPO);}} className={`p-1 rounded-md hover:bg-gray-100 ${(issuedPO.passwordHash || issuedPO.password) ? 'text-yellow-600' : 'text-gray-400'}`}>
                       <KeyRound size={18} />
                     </button>
                   ) : <div className="text-xs text-green-600">済</div>

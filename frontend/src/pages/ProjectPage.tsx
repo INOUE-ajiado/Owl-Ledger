@@ -15,6 +15,8 @@ import { KeyRound, LockKeyhole, MoreVertical, Search, Archive, CornerDownRight, 
 import { useReactToPrint } from 'react-to-print';
 import ProjectAnalysisReportTemplate from '../features/printing/ProjectAnalysisReportTemplate';
 import { recordLog } from '../api/logging'; // ★ ログ機能を追加
+import { migrateLegacyPasswords } from '../utils/migratePasswords';
+import { toCsvCell } from '../utils/security';
 
 const OrderStatusBadge = ({ status }: { status: '承認待ち' | '承認済み' | undefined }) => {
     if (!status) return null;
@@ -95,6 +97,12 @@ const ProjectPage = () => {
         });
         return () => unsubscribe();
     }, [showModal]);
+
+    // 旧形式 (平文) のパスワードをハッシュへ移行する。プロジェクトを更新できるのは管理者のみ
+    useEffect(() => {
+        if (!isAdmin) return;
+        migrateLegacyPasswords().catch(error => console.error("パスワードの移行に失敗しました:", error));
+    }, [isAdmin]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -303,14 +311,7 @@ const ProjectPage = () => {
             return;
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const escapeCsv = (field: any): string => {
-            const str = String(field ?? '');
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`;
-            }
-            return str;
-        };
+        const escapeCsv = (field: unknown): string => toCsvCell(field ?? '');
 
         const headers = ['管理ID', '登録日', '納期', '作品名', 'クライアント名', 'カテゴリ', '主担当作業者', 'ステータス', 'GLOSS', '税の扱い', '税抜合計', '消費税', 'NET', 'MARGIN'];
 
@@ -645,10 +646,10 @@ const ProjectPage = () => {
                                             {canWrite && !isMasterProject && (
                                                 <button
                                                     onClick={() => setPasswordModalProject(project)}
-                                                    className={`p-2 rounded-md hover:bg-gray-100 ${project.previewPassword ? 'text-yellow-600' : 'text-gray-400'}`}
-                                                    title={project.previewPassword ? "パスワードを変更" : "プレビューパスワードを設定"}
+                                                    className={`p-2 rounded-md hover:bg-gray-100 ${(project.previewPasswordHash || project.previewPassword) ? 'text-yellow-600' : 'text-gray-400'}`}
+                                                    title={(project.previewPasswordHash || project.previewPassword) ? "パスワードを変更" : "プレビューパスワードを設定"}
                                                 >
-                                                    {project.previewPassword ? <LockKeyhole size={18} /> : <KeyRound size={18} />}
+                                                    {(project.previewPasswordHash || project.previewPassword) ? <LockKeyhole size={18} /> : <KeyRound size={18} />}
                                                 </button>
                                             )}
                                         </td>

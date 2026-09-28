@@ -104,8 +104,9 @@ export const LedgerEntryForm = ({ currentReport, subjects, editingEntry, onSave,
 
       const formData = new FormData();
       formData.append('receipt', file);
+      const idToken = await auth.currentUser.getIdToken();
       const response = await axios.post('/api/ocr', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${idToken}` },
       });
 
       const data = response.data;

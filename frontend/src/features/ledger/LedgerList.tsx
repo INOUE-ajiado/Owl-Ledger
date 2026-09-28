@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { FileText, Paperclip, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import type { LedgerReport, LedgerEntry } from '../../types';
 import { formatYen, sumEntries } from './page/ledgerUtils';
+import { isSafeReceiptUrl } from '../../utils/security';
 
 interface LedgerListProps {
   report: LedgerReport;
@@ -46,7 +47,7 @@ const LedgerList = ({ report, onAttachFile, isLocked, onEdit, onDelete, editingE
 
   const renderActions = (entry: LedgerEntry) => (
     <div className="flex items-center justify-end gap-0.5">
-      {entry.receiptImageUrl && (
+      {isSafeReceiptUrl(entry.receiptImageUrl) && (
         <a href={entry.receiptImageUrl} target="_blank" rel="noopener noreferrer" className={`${actionButton} text-blue-600 hover:bg-blue-50`} title="添付ファイルを表示">
           <FileText size={16} />
         </a>

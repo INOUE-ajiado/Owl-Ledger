@@ -3,6 +3,7 @@ import { useParams, useLocation } from 'react-router-dom';
 import { doc, getDoc, updateDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../api/firebase';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { verifyPassword } from '../utils/security';
 import type { Project, Client, FixedInvoiceData, PurchaseOrder } from '../types';
 import InvoiceTemplate from '../features/printing/InvoiceTemplate';
 import PurchaseOrderTemplate from '../features/printing/PurchaseOrderTemplate';
@@ -175,9 +176,9 @@ const PrintHostPage = () => {
 
     const verifyAccess = async () => {
       if (docType !== 'purchase-order' && docType !== 'personal-invoice') {
-        if (project.previewPassword) {
+        if (project.previewPasswordHash || project.previewPassword) {
           const enteredPassword = prompt("このコンテンツは保護されています。パスワードを入力してください：");
-          if (enteredPassword === project.previewPassword) setIsVerified(true);
+          if (await verifyPassword(enteredPassword, project.id, { hash: project.previewPasswordHash, legacyPlain: project.previewPassword })) setIsVerified(true);
           else {
             alert("パスワードが違います。アクセスできません。");
             setError("パスワードが認証されませんでした。");
@@ -199,9 +200,9 @@ const PrintHostPage = () => {
           if (!poSnap.exists()) throw new Error("発注書が見つかりません。");
 
           const poData = poSnap.data() as PurchaseOrder;
-          if (poData.password) {
+          if (poData.passwordHash || poData.password) {
             const enteredPassword = prompt("この発注書は保護されています。パスワードを入力してください：");
-            if (enteredPassword === poData.password) setIsVerified(true);
+            if (await verifyPassword(enteredPassword, poSnap.id, { hash: poData.passwordHash, legacyPlain: poData.password })) setIsVerified(true);
             else {
               alert("パスワードが違います。アクセスできません。");
               setError("パスワードが認証されませんでした。");
@@ -213,9 +214,9 @@ const PrintHostPage = () => {
           setError(err.message);
         }
       } else if (docType === 'personal-invoice') {
-        if (project.previewPassword) {
+        if (project.previewPasswordHash || project.previewPassword) {
           const enteredPassword = prompt("このコンテンツは保護されています。パスワードを入力してください：");
-          if (enteredPassword === project.previewPassword) setIsVerified(true);
+          if (await verifyPassword(enteredPassword, project.id, { hash: project.previewPasswordHash, legacyPlain: project.previewPassword })) setIsVerified(true);
           else {
             alert("パスワードが違います。アクセスできません。");
             setError("パスワードが認証されませんでした。");

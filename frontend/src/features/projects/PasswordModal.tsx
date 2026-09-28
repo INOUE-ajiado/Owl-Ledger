@@ -3,6 +3,7 @@ import { doc, updateDoc, deleteField } from 'firebase/firestore';
 import { db } from '../../api/firebase';
 import type { Project } from '../../types';
 import { useModal } from '../../contexts'; // ★ 修正: contextsからインポート
+import { hashPassword } from '../../utils/security';
 
 interface PasswordModalProps {
   project: Project;
@@ -10,17 +11,24 @@ interface PasswordModalProps {
 }
 
 const PasswordModal = ({ project, onClose }: PasswordModalProps) => {
-  const [password, setPassword] = useState(project.previewPassword || '');
+  // パスワードはハッシュで保存しているため、既存の値は表示できない
+  const [password, setPassword] = useState('');
+  const hasPassword = !!(project.previewPasswordHash || project.previewPassword);
   const { showModal } = useModal();
 
   const handleSave = async () => {
     if (!password) {
-      handleRemove();
+      // 設定済みで空欄のまま保存した場合は変更しない (解除は「パスワードを解除」ボタンで行う)
+      if (hasPassword) onClose();
+      else handleRemove();
       return;
     }
     const projectRef = doc(db, 'projects', project.id);
     try {
-      await updateDoc(projectRef, { previewPassword: password });
+      await updateDoc(projectRef, {
+        previewPasswordHash: await hashPassword(password, project.id),
+        previewPassword: deleteField(),
+      });
       showModal({ title: '成功', message: 'パスワードを設定しました。' });
       onClose();
     } catch (error) {
@@ -32,7 +40,7 @@ const PasswordModal = ({ project, onClose }: PasswordModalProps) => {
   const handleRemove = async () => {
     const projectRef = doc(db, 'projects', project.id);
     try {
-      await updateDoc(projectRef, { previewPassword: deleteField() });
+      await updateDoc(projectRef, { previewPasswordHash: deleteField(), previewPassword: deleteField() });
       showModal({ title: '成功', message: 'パスワードを解除しました。' });
       onClose();
     } catch (error) {
@@ -56,7 +64,7 @@ const PasswordModal = ({ project, onClose }: PasswordModalProps) => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="block w-full mt-1 border-gray-300 rounded-md shadow-sm bg-gray-50"
-            placeholder="空欄で保存すると解除されます"
+            placeholder={hasPassword ? "設定済み (入力すると上書き)" : "パスワードを入力"}
           />
         </div>
         <div className="flex items-center justify-between mt-6">
@@ -64,7 +72,7 @@ const PasswordModal = ({ project, onClose }: PasswordModalProps) => {
             type="button"
             onClick={handleRemove}
             className="text-sm text-gray-600 hover:text-red-600 disabled:opacity-50"
-            disabled={!project.previewPassword}
+            disabled={!hasPassword}
           >
             パスワードを解除
           </button>

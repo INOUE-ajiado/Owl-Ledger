@@ -49,7 +49,8 @@ export interface Project {
   clientName: string;
   status: '進行中' | '完了' | '請求済' | '削除済み';
   remarks?: string;
-  previewPassword?: string;
+  previewPassword?: string; // 旧形式 (平文)。新規はハッシュで保存
+  previewPasswordHash?: string;
   taxType: 'inclusive' | 'exclusive';
   isFixed?: boolean;
   fixedInvoiceData?: FixedInvoiceData;
@@ -80,7 +81,8 @@ export interface PurchaseOrder {
   workerName: string;
   amount: number;
   issuedAt: { seconds: number; nanoseconds: number; };
-  password?: string;
+  password?: string; // 旧形式 (平文)。新規はハッシュで保存
+  passwordHash?: string;
   includedIndices: number[];
   vendorName?: string;
   issueDate?: string;
