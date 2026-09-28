@@ -27,6 +27,24 @@ const OrderStatusBadge = ({ status }: { status: '承認待ち' | '承認済み' 
     );
 };
 
+// ヘッダー(AppLayout)に描画されるため、親の state を value に直接使うと反映が1レンダー遅れ、
+// IME 変換中に古い値で上書きされて日本語入力が壊れる。入力値はこのコンポーネント内で保持する。
+const SearchInput = ({ onChange }: { onChange: (value: string) => void }) => {
+    const [value, setValue] = useState('');
+    return (
+        <input
+            type="text"
+            placeholder="検索..."
+            value={value}
+            onChange={(e) => {
+                setValue(e.target.value);
+                onChange(e.target.value);
+            }}
+            className="w-40 py-2 pl-10 pr-4 text-sm bg-white/40 border-white/30 rounded-md focus:ring-earth-500 focus:border-earth-500 text-earth-800 placeholder-earth-400 backdrop-blur-sm"
+        />
+    );
+};
+
 const ProjectPage = () => {
     const { setHeaderProps, permissions } = useAppOutletContext();
     const { showModal } = useModal();
@@ -408,13 +426,7 @@ const ProjectPage = () => {
         <div className="flex flex-wrap items-center justify-end flex-grow gap-2 ml-auto">
             <div className="relative">
                 <Search size={18} className="absolute text-earth-400 -translate-y-1/2 pointer-events-none left-3 top-1/2" />
-                <input
-                    type="text"
-                    placeholder="検索..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-40 py-2 pl-10 pr-4 text-sm bg-white/40 border-white/30 rounded-md focus:ring-earth-500 focus:border-earth-500 text-earth-800 placeholder-earth-400 backdrop-blur-sm"
-                />
+                <SearchInput onChange={setSearchTerm} />
             </div>
             <div className="flex items-center px-2 py-2 text-sm text-earth-700 bg-white/40 border border-white/30 rounded-md backdrop-blur-sm">
                 <ArrowUpDown size={14} className="mr-1 text-earth-400" />
@@ -562,7 +574,7 @@ const ProjectPage = () => {
                 </div>
             </div>
         </div>
-    ), [searchTerm, statusFilter, isAdmin, canWrite, handleAddNew, handleProjectCsvExport, sortOption, isStatsOpen, statsData]);
+    ), [statusFilter, isAdmin, canWrite, handleAddNew, handleProjectCsvExport, sortOption, isStatsOpen, statsData]);
 
     useEffect(() => {
         setHeaderProps({
