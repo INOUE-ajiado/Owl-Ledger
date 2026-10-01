@@ -8,7 +8,10 @@ import type { ProjectFormValues } from './types';
 import { FinancialSection } from './components/FinancialSection';
 import { BasicInfoSection } from './components/BasicInfoSection';
 import { BreakdownSection } from './components/BreakdownSection';
-import { recordLog } from '../../../api/logging'; // ★ ログ機能を追加
+import { recordLog } from '../../../api/logging';
+import { recordChange } from '../../../api/changeHistory';
+import { useStaff, useVendors } from '../../../hooks/useMasters';
+import { useCompanySettings } from '../../../hooks/useCompanySettings';
 
 interface ProjectFormProps {
   onClose: () => void;
@@ -18,6 +21,9 @@ interface ProjectFormProps {
 
 const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps) => {
   const [clients, setClients] = useState<Client[]>([]);
+  const { activeStaff } = useStaff();
+  const { vendors, vendorIndex } = useVendors();
+  const { settings } = useCompanySettings();
   
   const methods = useForm<ProjectFormValues>({
     defaultValues: {
@@ -47,7 +53,7 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
   
   const projectType = watch('projectType');
 
-  useProjectCalculations(methods);
+  useProjectCalculations(methods, settings.taxRate);
 
   useEffect(() => {
     const loadClientsAndResetForm = async () => {
@@ -129,14 +135,21 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
       marginRate: Number(data.marginRate),
       characterCount: Number(data.characterCount),
       negotiationFeeRate: Number(data.negotiationFeeRate),
-      breakdown: data.projectType !== 'master' 
-        ? data.breakdown.map(item => ({  
-            ...item,  
-            percentage: Number(item.percentage),  
-            quantity: Number(item.quantity) || 1,  
-            amount: Number(item.amount) || 0,  
-            content: item.content || ''  
-          })) 
+      breakdown: data.projectType !== 'master'
+        ? data.breakdown.map(item => {
+            // 外注先が未紐付けの旧データは、名前から外注先を推定して紐付ける (表示名は変えない)
+            const vendorId = data.projectType === 'standard' || data.projectType === 'sub'
+              ? (item.vendorId || vendorIndex.resolve(item.name)?.id || '')
+              : '';
+            return {
+              ...item,
+              vendorId,
+              percentage: Number(item.percentage),
+              quantity: Number(item.quantity) || 1,
+              amount: Number(item.amount) || 0,
+              content: item.content || ''
+            };
+          })
         : [],
       masterProjectId: data.projectType === 'sub' ? data.masterProjectId : '',
     };
@@ -146,6 +159,11 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
         const projectDocRef = doc(db, 'projects', editingProject.id);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await updateDoc(projectDocRef, projectDataToSave as any);
+        await recordChange({
+          targetType: 'project', targetId: editingProject.id, targetLabel: `${data.title} (${data.projectId})`,
+          action: 'update', before: editingProject as unknown as Record<string, unknown>, after: { ...editingProject, ...projectDataToSave } as unknown as Record<string, unknown>,
+          ignoreKeys: ['id'],
+        });
         alert('プロジェクトを更新しました。');
         
         // ★ ログ記録: 更新
@@ -160,6 +178,10 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const newDocRef = await addDoc(collection(db, 'projects'), projectDataToSave as any);
+        await recordChange({
+          targetType: 'project', targetId: newDocRef.id, targetLabel: `${data.title} (${data.projectId})`,
+          action: 'create', before: null, after: projectDataToSave as unknown as Record<string, unknown>,
+        });
         alert('プロジェクトを登録しました。');
 
         // ★ ログ記録: 作成
@@ -190,8 +212,8 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-6xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black bg-opacity-50 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-6xl max-h-[94vh] sm:max-h-[90vh] flex flex-col">
         <h3 className="flex-shrink-0 mb-6 text-xl font-semibold leading-6 text-gray-900">
           {editingProject ? 'プロジェクト編集' : '新規プロジェクト登録'}
         </h3>
@@ -201,7 +223,7 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
             
             <div className="mb-8">
                 <h4 className="pb-2 mb-2 font-semibold text-gray-800 border-b">プロジェクト種別</h4>
-                <div className="flex space-x-6">
+                <div className="flex flex-wrap gap-x-6 gap-y-2">
                   <label className="flex items-center"><input type="radio" {...methods.register("projectType")} value="standard" className="w-4 h-4" /> <span className="ml-2">通常プロジェクト</span></label>
                   <label className="flex items-center"><input type="radio" {...methods.register("projectType")} value="master" className="w-4 h-4" /> <span className="ml-2">マスタープロジェクト</span></label>
                   <label className="flex items-center"><input type="radio" {...methods.register("projectType")} value="sub" className="w-4 h-4" /> <span className="ml-2">子プロジェクト</span></label>
@@ -209,14 +231,14 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
                 </div>
             </div>
 
-            <BasicInfoSection clients={clients} allProjects={allProjects} />
+            <BasicInfoSection clients={clients} allProjects={allProjects} staff={activeStaff} vendors={vendors} />
             
             <div className="mt-8">
               <FinancialSection />
             </div>
 
             {projectType !== 'master' && (
-              <BreakdownSection />
+              <BreakdownSection vendors={vendors} />
             )}
 
             <section className="mt-8">

@@ -38,9 +38,10 @@ service cloud.firestore {
       return isStaff() && permOf(area) == 'write';
     }
 
-    // 管理者（inoue@ajiado.co.jp）かどうかを判定
+    // 管理者: permissions の isAdmin が true の社員 (アクセス権限画面で設定する)
     function isAdmin() {
-      return hasVerifiedEmail() && request.auth.token.email == 'inoue@ajiado.co.jp';
+      return isStaff()
+        && get(/databases/$(database)/documents/permissions/$(request.auth.token.email)).data.get('isAdmin', false) == true;
     }
 
     function changedKeys() {
@@ -79,7 +80,7 @@ service cloud.firestore {
       // 出納帳画面で提出者名の表示に使うため、社員は一覧を参照可
       allow list: if isStaff();
       allow create, delete: if isAdmin();
-      // 本人に許可するのは、初回ログイン時の自分の uid の登録のみ（権限の自己変更は不可）
+      // 本人に許可するのは、初回ログイン時の自分の uid の登録のみ（権限・管理者フラグの自己変更は不可）
       allow update: if isAdmin() || (
         hasVerifiedEmail() && request.auth.token.email == email &&
         changedKeys().hasOnly(['uid']) &&
@@ -114,31 +115,92 @@ service cloud.firestore {
       // サブコレクション: 発注書 (purchaseOrders)
       match /purchaseOrders/{poId} {
         // 発注書の印刷ページ (匿名) は、URL のプロジェクト配下のみ参照する
-        allow read: if isSignedIn();
-        allow write: if canWrite('projects');
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow write: if canWrite('projects') || isAdmin();
       }
     }
 
+    // 外注先の詳細・集計ページ用に、全プロジェクトの発注書をまとめて読む (社員のみ)
+    match /{path=**}/purchaseOrders/{poId} {
+      allow read: if isStaff();
+    }
+
     // 5. 出納帳 (ledgerReports)
+    // 電子帳簿保存法: 承認後の出納帳は内容を変更・削除できない (状態の遷移だけ許可)
     match /ledgerReports/{reportId} {
       allow list: if isStaff() && permOf('ledger') != 'disabled';
       // 承認用URL (匿名) は URL で指定された1件のみ
       allow get: if isSignedIn();
-      allow create, delete: if canWrite('ledger');
-      // 更新: 出納帳の編集権限を持つ社員、または「承認待ち → 承認済み」への変更のみ
-      allow update: if canWrite('ledger') || (
-        isSignedIn() &&
-        resource.data.status == '承認待ち' &&
-        request.resource.data.status == '承認済み' &&
-        changedKeys().hasOnly(['status', 'approvedAt', 'approverName']) &&
-        (!('approverName' in request.resource.data) || isShortString(request.resource.data.approverName, 100))
-      );
+      allow create: if canWrite('ledger') && request.resource.data.status == '作成中';
+      // 削除できるのは作成中・承認待ちのみ
+      allow delete: if canWrite('ledger') && resource.data.status in ['作成中', '承認待ち'];
+      allow update: if
+        // 作成中: 明細の編集と、承認待ちへの提出
+        (canWrite('ledger') && resource.data.status == '作成中'
+          && request.resource.data.status in ['作成中', '承認待ち'])
+        // 承認待ち → 承認済み (承認URLから。承認に関係する項目以外は変更不可)
+        || (isSignedIn()
+          && resource.data.status == '承認待ち'
+          && request.resource.data.status == '承認済み'
+          && changedKeys().hasOnly(['status', 'approvedAt', 'approverName'])
+          && (!('approverName' in request.resource.data) || isShortString(request.resource.data.approverName, 100)))
+        // 承認済み → 経理提出済み (状態と提出日時のみ)
+        || (canWrite('ledger')
+          && resource.data.status == '承認済み'
+          && request.resource.data.status == '経理提出済み'
+          && changedKeys().hasOnly(['status', 'accountingSubmittedAt']));
     }
 
     // 6. 科目管理 (ledgerSubjects)
     match /ledgerSubjects/{subjectId} {
       allow read: if isStaff();
       allow write: if isAdmin();
+    }
+
+    // 8. 会社設定 (settings)。帳票の発行元として承認・印刷ページ (匿名) からも読む
+    match /settings/{settingId} {
+      allow get: if isSignedIn();
+      allow list: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    // 9. 社員マスタ (staff)
+    match /staff/{staffId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    // 10. 外注先マスタ (vendors)
+    match /vendors/{vendorId} {
+      allow read: if isStaff();
+      allow write: if isAdmin() || canWrite('clients');
+    }
+
+    // 11. 帳票番号の採番 (counters)。値は連番 (整数) のみ
+    match /counters/{counterId} {
+      allow read: if isStaff();
+      allow write: if (isAdmin() || canWrite('projects'))
+        && request.resource.data.keys().hasOnly(['value'])
+        && request.resource.data.value is int
+        && request.resource.data.value == (resource == null ? 1 : resource.data.value + 1);
+    }
+
+    // 12. 変更履歴 (changeHistory)。本人名義で追記のみ・改ざん禁止
+    match /changeHistory/{historyId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(['timestamp', 'userId', 'userEmail', 'targetType', 'targetId', 'targetLabel', 'action', 'changes'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userEmail == (isAnonymous() ? 'anonymous_visitor' : request.auth.token.get('email', 'no_email_user'))
+        && request.resource.data.timestamp is timestamp
+        && request.resource.data.action in ['create', 'update', 'delete']
+        && isShortString(request.resource.data.targetType, 50)
+        && isShortString(request.resource.data.targetId, 200)
+        && isShortString(request.resource.data.targetLabel, 300)
+        && request.resource.data.changes is list
+        && request.resource.data.changes.size() <= 200;
+      allow update, delete: if false;
     }
 
     // 7. 通知 (notifications)

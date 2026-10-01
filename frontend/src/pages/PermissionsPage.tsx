@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useAppOutletContext } from '../contexts';
+import { useAppOutletContext, useAuth } from '../contexts';
 import { useModal } from '../contexts';
+import { recordChange } from '../api/changeHistory';
 import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, rtDb } from '../api/firebase';
 import { ref, onValue, off } from 'firebase/database';
@@ -22,6 +23,7 @@ const getPermissionSelectStyle = (value: 'read' | 'write' | 'disabled') => {
 const PermissionsPage = () => {
   const { setHeaderProps } = useAppOutletContext();
   const { showModal } = useModal();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserPermissions[]>([]);
   const [activeUsers, setActiveUsers] = useState<Record<string, boolean>>({});
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -38,7 +40,6 @@ const PermissionsPage = () => {
     { id: 'projects', label: 'プロジェクト' },
     { id: 'clients', label: 'クライアント' },
     { id: 'ledger', label: '出納帳' },
-    { id: 'permissions', label: 'アクセス権限' },
   ];
 
   useEffect(() => {
@@ -49,6 +50,7 @@ const PermissionsPage = () => {
         email: doc.id,
         uid: doc.data().uid,
         permissions: doc.data().permissions as PermissionSet,
+        isAdmin: doc.data().isAdmin === true,
       }));
       setUsers(usersData);
     });
@@ -80,7 +82,9 @@ const PermissionsPage = () => {
       showModal({ title: 'エラー', message: 'メールアドレスを入力してください。' });
       return;
     }
-    await setDoc(doc(db, 'permissions', newUserEmail), { permissions: newUserPermissions });
+    const email = newUserEmail.trim().toLowerCase();
+    await setDoc(doc(db, 'permissions', email), { permissions: newUserPermissions, isAdmin: false });
+    await recordChange({ targetType: 'permissions', targetId: email, targetLabel: email, action: 'create', before: null, after: { permissions: newUserPermissions, isAdmin: false } });
     setNewUserEmail('');
     showModal({ title: '成功', message: 'ユーザーを招待しました。' });
   };
@@ -89,18 +93,36 @@ const PermissionsPage = () => {
     const userToUpdate = users.find(u => u.email === email);
     if (userToUpdate) {
       const updatedPermissions = { ...userToUpdate.permissions, [key]: value };
-      setDoc(doc(db, 'permissions', email), { permissions: updatedPermissions }, { merge: true });
+      setDoc(doc(db, 'permissions', email), { permissions: updatedPermissions }, { merge: true })
+        .then(() => recordChange({ targetType: 'permissions', targetId: email, targetLabel: email, action: 'update', changes: [{ field: `permissions.${key}`, before: userToUpdate.permissions[key] ?? '', after: value }] }));
     }
+  };
+
+  // 管理者: 権限・会社設定・ログの管理、プロジェクト/クライアントの編集ができる
+  const handleAdminChange = (email: string, isAdmin: boolean) => {
+    if (!isAdmin && email === currentUser?.email) {
+      showModal({ title: '変更できません', message: '自分自身の管理者権限は外せません。別の管理者に依頼してください。' });
+      return;
+    }
+    setDoc(doc(db, 'permissions', email), { isAdmin }, { merge: true })
+      .then(() => recordChange({ targetType: 'permissions', targetId: email, targetLabel: email, action: 'update', changes: [{ field: 'isAdmin', before: String(!isAdmin), after: String(isAdmin) }] }))
+      .catch(() => showModal({ title: 'エラー', message: '変更に失敗しました。' }));
   };
   
   const handleDelete = async (email: string) => {
+    if (email === currentUser?.email) {
+      showModal({ title: '削除できません', message: '自分自身は削除できません。' });
+      return;
+    }
     showModal({
       title: 'ユーザーの削除',
       message: `${email} を権限リストから削除しますか？`,
       onCancel: () => {}, 
       onConfirm: async () => {
         try {
+          const before = users.find(u => u.email === email);
           await deleteDoc(doc(db, 'permissions', email));
+          await recordChange({ targetType: 'permissions', targetId: email, targetLabel: email, action: 'delete', before: before ? { permissions: before.permissions, isAdmin: !!before.isAdmin } : null, after: null });
           showModal({ title: '成功', message: 'ユーザーを削除しました。'});
         } catch { // ★ 修正: 変数を受け取らないように変更
           showModal({ title: 'エラー', message: '削除に失敗しました。'});
@@ -128,7 +150,7 @@ const PermissionsPage = () => {
             </div>
             <button type="submit" className="px-4 py-2 text-white bg-earth-600 rounded-md hover:bg-earth-700 shadow-md">招待</button>
           </div>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {permissionConfig.map(({ id, label }) => (
               <div key={id}>
                 <label className="block text-sm font-medium text-gray-700">{label}</label>
@@ -147,11 +169,15 @@ const PermissionsPage = () => {
         </form>
       </div>
 
+      <p className="px-6 text-xs text-earth-600">
+        管理者は、アクセス権限・会社設定・実行ログの管理と、プロジェクト・クライアントの登録・編集ができます。社員の氏名や印鑑名は「会社設定 → 社員マスタ」で登録します。
+      </p>
       <div className="w-full overflow-x-auto bg-white/40 backdrop-blur-sm border-y border-white/20">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">ユーザー</th>
+              <th className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">管理者</th>
               {permissionConfig.map(({ label }) => (
                 <th key={label} className="px-6 py-3 text-xs font-medium tracking-wider text-left text-gray-500 uppercase">{label}</th>
               ))}
@@ -166,6 +192,12 @@ const PermissionsPage = () => {
                     <span className={`h-2.5 w-2.5 rounded-full mr-2 ${activeUsers[user.email] ? 'bg-green-500' : 'bg-gray-400'}`}></span>
                     {user.email}
                   </div>
+                </td>
+                <td className="px-6 py-4 text-sm whitespace-nowrap">
+                  <label className="inline-flex items-center gap-2">
+                    <input type="checkbox" checked={user.isAdmin === true} onChange={(e) => handleAdminChange(user.email, e.target.checked)} />
+                    <span className={user.isAdmin ? 'font-semibold text-earth-800' : 'text-gray-400'}>{user.isAdmin ? '管理者' : '—'}</span>
+                  </label>
                 </td>
                 {permissionConfig.map(({ id }) => (
                   <td key={id} className="px-6 py-4 text-sm whitespace-nowrap">

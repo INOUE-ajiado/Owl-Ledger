@@ -1,14 +1,20 @@
 import { useFormContext } from 'react-hook-form';
-import type { Project, Client } from '../../../../types';
+import type { Project, Client, Staff, Vendor } from '../../../../types';
 
 interface BasicInfoSectionProps {
   clients: Client[];
   allProjects: Project[];
+  staff: Staff[];
+  vendors: Vendor[];
 }
 
-export const BasicInfoSection = ({ clients, allProjects }: BasicInfoSectionProps) => {
+export const BasicInfoSection = ({ clients, allProjects, staff, vendors }: BasicInfoSectionProps) => {
   const { register, watch, formState: { errors } } = useFormContext();
   const projectType = watch('projectType');
+  const copyrightManager: string = watch('copyrightManager') || '';
+  // 社員マスタにない名前 (退職者・旧データ) も選択肢に残して表示する
+  const staffNames = staff.map(s => s.name);
+  const hasLegacyManager = copyrightManager !== '' && !staffNames.includes(copyrightManager);
 
   // 自分自身を親の選択肢から除外するためのフィルタリングは、
   // ここでは簡易的に「master」タイプのみを抽出して表示します。
@@ -28,7 +34,7 @@ export const BasicInfoSection = ({ clients, allProjects }: BasicInfoSectionProps
             <label className="block text-sm font-medium text-gray-700">納品日</label>
             <input type="date" {...register("dueDate", { required: true })} className="block w-full mt-1 border-gray-300 rounded-md shadow-sm"/>
           </div>
-          <div className="col-span-2">
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700">作品名 / 案件名</label>
             <input type="text" {...register("title", { required: true })} className="block w-full mt-1 border-gray-300 rounded-md shadow-sm"/>
           </div>
@@ -53,12 +59,16 @@ export const BasicInfoSection = ({ clients, allProjects }: BasicInfoSectionProps
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">版権担当者 <span className="text-red-500">*</span></label>
-            <input
-              type="text"
+            <select
               {...register("copyrightManager", { required: true, validate: (v: string) => v.trim() !== '' })}
               className={`block w-full mt-1 rounded-md shadow-sm ${errors.copyrightManager ? 'border-red-500' : 'border-gray-300'}`}
-            />
-            {errors.copyrightManager && <p className="mt-1 text-xs text-red-600">版権担当者を入力してください</p>}
+            >
+              <option value="">選択してください</option>
+              {hasLegacyManager && <option value={copyrightManager}>{copyrightManager} (社員マスタ未登録)</option>}
+              {staffNames.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+            {errors.copyrightManager && <p className="mt-1 text-xs text-red-600">版権担当者を選択してください</p>}
+            {staff.length === 0 && <p className="mt-1 text-xs text-amber-700">社員マスタが未登録です。「会社設定 → 社員マスタ」で登録してください。</p>}
           </div>
           {projectType === 'sub' && (
             <div>
@@ -78,7 +88,8 @@ export const BasicInfoSection = ({ clients, allProjects }: BasicInfoSectionProps
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700">{projectType === 'internal_sale' ? '担当者' : '主担当作業者'}</label>
-              <input type="text" {...register("workerName", { required: true })} className="block w-full mt-1 border-gray-300 rounded-md shadow-sm"/>
+              <input type="text" list={projectType === 'internal_sale' ? undefined : 'vendor-names'} {...register("workerName", { required: true })} className="block w-full mt-1 border-gray-300 rounded-md shadow-sm"/>
+              <datalist id="vendor-names">{vendors.map(v => <option key={v.id} value={v.name} />)}</datalist>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">カテゴリ</label>

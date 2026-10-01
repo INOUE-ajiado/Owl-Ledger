@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../api/firebase';
 import type { LedgerReport } from '../../types';
+import { inPeriod, monthsInPeriod, type Period } from '../../utils/period';
 import { Pie, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 
@@ -33,7 +34,7 @@ const DeltaIndicator = ({ value, positiveIsGood }: { value: number; positiveIsGo
 };
 
 
-const LedgerAnalysis = () => {
+const LedgerAnalysis = ({ period }: { period: Period }) => {
   const [reports, setReports] = useState<LedgerReport[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +52,7 @@ const LedgerAnalysis = () => {
     const subjectExpenses: { [key: string]: number } = {};
     reports.forEach(report => {
       report.entries.forEach(entry => {
+        if (!inPeriod(entry.date, period)) return;
         if (entry.expense > 0 && Array.isArray(entry.subject)) {
           entry.subject.forEach(subjectName => {
             if (subjectName) {
@@ -70,7 +72,7 @@ const LedgerAnalysis = () => {
         borderWidth: 0,
       }],
     };
-  }, [reports]);
+  }, [reports, period]);
 
   const summaryData = useMemo(() => {
     const now = new Date();
@@ -128,55 +130,33 @@ const LedgerAnalysis = () => {
     }
   }, [reports]);
 
+  // 期間内の月別経費と前年同月
   const barChartData = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const lastYear = currentYear - 1;
     const monthlyExpenses: { [key: string]: number } = {};
-
     reports.forEach(report => {
-      const reportYear = parseInt(report.month.substring(0, 4));
-      if (reportYear === currentYear || reportYear === lastYear) {
-        const totalExpense = report.entries.reduce((sum, entry) => sum + entry.expense, 0);
-        monthlyExpenses[report.month] = (monthlyExpenses[report.month] || 0) + totalExpense;
-      }
+      report.entries.forEach(entry => {
+        const key = (entry.date || report.month).slice(0, 7);
+        monthlyExpenses[key] = (monthlyExpenses[key] || 0) + (Number(entry.expense) || 0);
+      });
     });
-
-    const labels = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
-    const currentYearData = labels.map((_, i) => {
-      const monthKey = `${currentYear}-${String(i + 1).padStart(2, '0')}`;
-      return monthlyExpenses[monthKey] || 0;
-    });
-    const lastYearData = labels.map((_, i) => {
-      const monthKey = `${lastYear}-${String(i + 1).padStart(2, '0')}`;
-      return monthlyExpenses[monthKey] || 0;
-    });
+    const months = monthsInPeriod(period, reports.map(r => `${r.month}-01`));
+    const lastYearKey = (m: string) => `${Number(m.slice(0, 4)) - 1}${m.slice(4)}`;
 
     return {
-      labels,
+      labels: months.map(m => `${Number(m.slice(2, 4))}/${Number(m.slice(5))}`),
       datasets: [
-        {
-          label: `${currentYear}年 経費`,
-          data: currentYearData,
-          backgroundColor: '#BF6A5D',
-          borderRadius: 4,
-        },
-        {
-          label: `${lastYear}年 経費`,
-          data: lastYearData,
-          backgroundColor: '#8B9A8B',
-          borderRadius: 4,
-        },
+        { label: '経費', data: months.map(m => monthlyExpenses[m] || 0), backgroundColor: '#BF6A5D', borderRadius: 4 },
+        { label: '前年同月', data: months.map(m => monthlyExpenses[lastYearKey(m)] || 0), backgroundColor: '#8B9A8B', borderRadius: 4 },
       ],
     };
-  }, [reports]);
-
+  }, [reports, period]);
 
   if (loading) return <div className="text-center p-10">経費データを分析中...</div>;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-earth-200/60">
       <div className="p-6 bg-white/50 backdrop-blur-sm">
-        <h3 className="text-lg font-semibold mb-4 text-earth-800">科目別 経費分析</h3>
+        <h3 className="text-lg font-semibold mb-4 text-earth-800">科目別 経費分析 (期間内)</h3>
         <div className="flex justify-center h-80">
           {pieChartData.labels.length > 0 ? (
             <Pie data={pieChartData} options={{ responsive: true, maintainAspectRatio: false }} />
@@ -230,7 +210,7 @@ const LedgerAnalysis = () => {
       </div>
 
       <div className="lg:col-span-2 p-6 bg-white/50 backdrop-blur-sm">
-        <h3 className="text-lg font-semibold mb-4 text-earth-800">年間経費比較</h3>
+        <h3 className="text-lg font-semibold mb-4 text-earth-800">月別経費 (期間内・前年同月比較)</h3>
         <div className="h-96">
           <Bar data={barChartData} options={{ responsive: true, maintainAspectRatio: false, plugins: { title: { display: false } } }} />
         </div>

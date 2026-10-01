@@ -15,6 +15,8 @@ const formatStampDate = (timestamp: { seconds: number; nanoseconds: number; } | 
 };
 
 import ApprovalStamp from '../ledger/ApprovalStamp';
+import { useCompanySettings } from '../../hooks/useCompanySettings';
+import { calcNegotiationFee, NEGOTIATION_FEE_MAX, NEGOTIATION_FEE_MIN, toTaxExclusive } from '../../utils/money';
 
 interface OrderConfirmationTemplateProps {
   project: Project;
@@ -28,17 +30,15 @@ const OrderConfirmationTemplate = ({ project, client }: OrderConfirmationTemplat
     : project.gloss;
 
   const taxType = project.taxType || 'exclusive';
-  const glossTaxExclusive = taxType === 'inclusive' ? glossInput / 1.1 : glossInput;
+  const { settings } = useCompanySettings();
+  const glossTaxExclusive = toTaxExclusive(glossInput, taxType, settings.taxRate);
 
   const initialMargin = glossTaxExclusive * (project.marginRate / 100);
 
   // 価格交渉料のロジック (GLOSS x negotiationFeeRate%、最低保証4000円、上限10000円)
-  const MINIMUM_GUARANTEE_FEE = 4000;
-  const MAXIMUM_GUARANTEE_FEE = 10000;
-  const negotiationFeeRaw = glossTaxExclusive * (project.negotiationFeeRate / 100);
-  const finalNegotiationFee = Math.max(MINIMUM_GUARANTEE_FEE, Math.min(MAXIMUM_GUARANTEE_FEE, negotiationFeeRaw));
-  const isMinimumGuarantee = finalNegotiationFee === MINIMUM_GUARANTEE_FEE;
-  const isMaximumGuarantee = finalNegotiationFee === MAXIMUM_GUARANTEE_FEE;
+  const finalNegotiationFee = calcNegotiationFee(glossTaxExclusive, project.negotiationFeeRate);
+  const isMinimumGuarantee = finalNegotiationFee === NEGOTIATION_FEE_MIN;
+  const isMaximumGuarantee = finalNegotiationFee === NEGOTIATION_FEE_MAX;
 
   const finalMargin = initialMargin - finalNegotiationFee;
 
@@ -63,7 +63,7 @@ const OrderConfirmationTemplate = ({ project, client }: OrderConfirmationTemplat
   const completionMonth = completionDate.getMonth() + 1;
   const completionDay = completionDate.getDate();
 
-  const productionManager = '井上';
+  const productionManager = project.copyrightManager || '';
 
   const breakdown = project.breakdown || [];
   const totalBodyRows = 7;

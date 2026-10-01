@@ -13,16 +13,34 @@ service firebase.storage {
         && firestore.exists(/databases/(default)/documents/permissions/$(request.auth.token.email));
     }
 
+    function isAdmin() {
+      return isStaff()
+        && firestore.get(/databases/(default)/documents/permissions/$(request.auth.token.email)).data.get('isAdmin', false) == true;
+    }
+
     match /receipt-images/{uid}/{fileName} {
       allow read: if isStaff();
       // アップロードは自分のフォルダにのみ・20MB以下。
       // ブラウザで開くとスクリプトが動く形式 (HTML/SVG/XML/JS) は禁止
-      allow create, update: if isStaff()
+      // 同じパスへの上書きも create として扱われるため、既存ファイルがない場合のみ許可する
+      allow create: if isStaff()
+        && resource == null
         && request.auth.uid == uid
         && request.resource.size < 20 * 1024 * 1024
         && !request.resource.contentType.lower().matches('(text/html|application/xhtml\\+xml|image/svg\\+xml|text/xml|application/xml|(text|application)/(x-)?(java|ecma)script)(;.*)?');
-      // 出納帳の削除時に他の社員が添付したファイルも削除するため、社員なら削除可
-      allow delete: if isStaff();
+      // 電子帳簿保存法の保存義務 (7年) があるため、添付ファイルの上書き・削除は禁止。
+      // 添付し直したときは新しいファイル名で保存される
+      allow update, delete: if false;
+    }
+
+    // 会社のロゴ・角印 (帳票に印字)。画像のみ・5MB以下・管理者のみアップロード
+    match /company-assets/{fileName} {
+      allow read: if request.auth != null;
+      allow create: if isAdmin()
+        && resource == null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(png|jpeg|webp|gif)');
+      allow update, delete: if false;
     }
 
     // 上記以外のパスはすべて拒否

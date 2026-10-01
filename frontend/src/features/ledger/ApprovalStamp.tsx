@@ -1,11 +1,3 @@
-const mapName = (name: string) => {
-  if (!name) return '';
-  const lowerName = name.toLowerCase();
-  if (lowerName === 'inoue') return '井上';
-  if (lowerName === 'ozawa') return '小澤';
-  return name;
-};
-
 interface ApprovalStampProps {
   status: '提出' | '承認';
   name: string;
@@ -13,7 +5,8 @@ interface ApprovalStampProps {
 }
 
 const ApprovalStamp = ({ status, name, date }: ApprovalStampProps) => {
-  const displayName = mapName(name);
+  // 名前は提出・承認した時点の社員マスタの「印鑑名」(会社設定の承認者名) を保存している
+  const displayName = name;
 
   return (
     <div

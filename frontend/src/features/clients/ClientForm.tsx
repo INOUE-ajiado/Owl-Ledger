@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../api/firebase';
 import type { Client } from '../../types';
+import { recordChange } from '../../api/changeHistory';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
@@ -55,10 +56,14 @@ const ClientForm = ({ onClose, editingClient }: ClientFormProps) => {
     try {
       if (editingClient) {
         const clientDocRef = doc(db, 'clients', editingClient.id);
-        await updateDoc(clientDocRef, data);
+        const { id: _id, ...before } = editingClient; // eslint-disable-line @typescript-eslint/no-unused-vars
+        const { id: _newId, ...after } = data as Client; // eslint-disable-line @typescript-eslint/no-unused-vars
+        await updateDoc(clientDocRef, after);
+        await recordChange({ targetType: 'client', targetId: editingClient.id, targetLabel: after.name, action: 'update', before, after });
         alert('クライアント情報を更新しました。');
       } else {
-        await addDoc(collection(db, 'clients'), data);
+        const created = await addDoc(collection(db, 'clients'), data);
+        await recordChange({ targetType: 'client', targetId: created.id, targetLabel: data.name, action: 'create', before: null, after: data });
         alert('クライアントを登録しました。');
       }
       onClose();
@@ -69,14 +74,14 @@ const ClientForm = ({ onClose, editingClient }: ClientFormProps) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black bg-opacity-50 sm:p-4">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[92vh] overflow-y-auto">
         <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
           {editingClient ? 'クライアント情報編集' : '新規クライアント登録'}
         </h3>
         
         <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="clientCode" className="block text-sm font-medium text-gray-700">クライアントID</label>
               <input type="text" id="clientCode" {...register("clientCode", { required: "クライアントIDは必須です" })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"/>

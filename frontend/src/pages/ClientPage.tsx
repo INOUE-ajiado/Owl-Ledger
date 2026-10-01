@@ -6,6 +6,7 @@ import { db } from '../api/firebase';
 import ClientList from '../features/clients/ClientList';
 import ClientForm from '../features/clients/ClientForm';
 import type { Client } from '../types';
+import { recordChange } from '../api/changeHistory';
 
 const ClientPage = () => {
   const { setHeaderProps, permissions } = useAppOutletContext();
@@ -13,7 +14,8 @@ const ClientPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-  const canWrite = permissions?.permissions?.clients === 'write';
+  // クライアントの登録・編集はセキュリティルール上、管理者のみ
+  const canWrite = permissions?.isAdmin === true;
 
   useEffect(() => {
     setHeaderProps({
@@ -32,14 +34,16 @@ const ClientPage = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (client: Client) => {
     if (!canWrite) return;
     showModal({
       title: 'クライアントの削除',
       message: 'このクライアントを本当に削除しますか？この操作は元に戻せません。',
       onConfirm: async () => {
         try {
-          await deleteDoc(doc(db, 'clients', id));
+          await deleteDoc(doc(db, 'clients', client.id));
+          const { id: _id, ...before } = client; // eslint-disable-line @typescript-eslint/no-unused-vars
+          await recordChange({ targetType: 'client', targetId: client.id, targetLabel: client.name, action: 'delete', before, after: null });
           showModal({ title: '成功', message: 'クライアントを削除しました。' });
         } catch (error) {
           console.error("Error removing document: ", error);
@@ -51,7 +55,7 @@ const ClientPage = () => {
 
   return (
     <div className="w-full min-h-full">
-      <ClientList onEdit={handleEdit} onDelete={handleDelete} />
+      <ClientList onEdit={handleEdit} onDelete={handleDelete} canWrite={canWrite} />
       {isModalOpen && canWrite && <ClientForm onClose={() => { setIsModalOpen(false); setEditingClient(null); }} editingClient={editingClient} />}
     </div>
   );

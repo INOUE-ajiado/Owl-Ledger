@@ -1,27 +1,32 @@
 import type { Project, Client } from '../../types';
+import { useCompanySettings } from '../../hooks/useCompanySettings';
+import { endOfNextMonth, formatYen, formatYmdSlash, splitTax } from '../../utils/money';
+import { BankAccountLines, CompanyAddress } from './CompanyInfo';
 
-const companySealUrl = '/assets/company-seal.png';
-const companyLogoUrl = '/assets/company-logo.png';
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('ja-JP').format(Math.round(amount));
-};
+const formatCurrency = formatYen;
 
 interface InvoiceTemplateProps {
   project: Project;
   client: Client;
-  // ★ 追加: 個人宛モードフラグ (デフォルトは false)
+  // 個人宛モード (「様」表記・住所なし)
   isPersonal?: boolean;
+  // 未確定の請求書の発行日 (未指定は今日)
+  draftIssueDate?: Date;
+  // 請求書番号を上書きする (個人宛請求書など)
+  documentNumber?: string;
 }
 
-const InvoiceTemplate = ({ project, client, isPersonal = false }: InvoiceTemplateProps) => {
-  
+const InvoiceTemplate = ({ project, client, isPersonal = false, draftIssueDate, documentNumber }: InvoiceTemplateProps) => {
+  const { settings } = useCompanySettings();
+
   let issueDateStr: string;
   let dueDate: string;
   let subtotal: number;
   let tax: number;
   let total: number;
   let unitPrice: number;
+  let taxRate: number;
+  let invoiceNumber: string;
 
   if (project.isFixed && project.fixedInvoiceData) {
     const data = project.fixedInvoiceData;
@@ -31,42 +36,34 @@ const InvoiceTemplate = ({ project, client, isPersonal = false }: InvoiceTemplat
     tax = data.tax;
     total = data.total;
     unitPrice = data.unitPrice;
+    taxRate = data.taxRate ?? 10; // 税率を持たない旧データは 10% で確定済み
+    // 番号を持たない旧データは伝票IDで発行済み
+    invoiceNumber = data.invoiceNumber ?? project.projectId;
   } else {
-    const issueDate = new Date();
-    const twoMonthsAhead = new Date(issueDate.getFullYear(), issueDate.getMonth() + 2, 1);
-    const lastDayOfNextMonth = new Date(twoMonthsAhead.getTime() - (24 * 60 * 60 * 1000));
-    
-    issueDateStr = issueDate.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    dueDate = lastDayOfNextMonth.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
-
-    if (project.taxType === 'inclusive') {
-      total = project.gloss;
-      subtotal = total / 1.1;
-      tax = total - subtotal;
-    } else {
-      subtotal = project.gloss;
-      tax = subtotal * 0.1;
-      total = subtotal + tax;
-    }
+    const issueDate = draftIssueDate ?? new Date();
+    issueDateStr = formatYmdSlash(issueDate);
+    dueDate = formatYmdSlash(endOfNextMonth(issueDate));
+    taxRate = settings.taxRate;
+    ({ subtotal, tax, total } = splitTax(project.gloss, project.taxType, taxRate));
     unitPrice = project.characterCount > 0 ? subtotal / project.characterCount : 0;
+    invoiceNumber = '未確定 (FIX時に採番)';
   }
-  
-  const invoiceNumber = project.projectId;
+  if (documentNumber) invoiceNumber = documentNumber;
+
   const personInCharge = project.copyrightManager || '';
+  const reissuedFrom = !isPersonal && project.isFixed ? project.invoiceHistory?.at(-1) : undefined;
 
   return (
     <div className="p-8 font-sans text-sm leading-snug text-gray-800 bg-white shadow-2xl print:shadow-none" style={{ width: '210mm', minHeight: '297mm' }}>
       <div className="w-full max-w-4xl mx-auto">
-        
+
         <header>
           <h1 className="mb-10 text-3xl font-bold text-center">請求書</h1>
           <div className="flex items-start justify-between leading-normal">
             <div className="w-1/2">
-              
-              {/* ★ 修正: 個人宛なら「様」、通常なら「御中」 */}
+
               <p className="text-lg">{client.name} {isPersonal ? '様' : '御中'}</p>
 
-              {/* ★ 修正: 個人宛でない場合のみ住所情報を表示 */}
               {!isPersonal && (
                 <>
                   <p className="mt-2">〒{client.postalCode}</p>
@@ -77,18 +74,14 @@ const InvoiceTemplate = ({ project, client, isPersonal = false }: InvoiceTemplat
                 </>
               )}
             </div>
-            
+
             <div className="flex justify-end w-1/2">
               <div className="text-left w-[350px]">
                 <div className="relative">
                   <div className="pl-4">
-                    <p className="font-bold">株式会社亜細亜堂</p>
-                    <p>登録番号: T9030001000285</p>
-                    <p className="mt-2">〒338-0012</p>
-                    <p>埼玉県さいたま市中央区大戸2丁目11-7</p>
-                    <p>TEL: 048-855-3388</p>
+                    <CompanyAddress settings={settings} showRegistrationNumber />
                   </div>
-                  <img src={companySealUrl} alt="角印" className="absolute top-[-10px] right-0 w-20 h-20 opacity-90" />
+                  {settings.sealUrl && <img src={settings.sealUrl} alt="角印" className="absolute top-[-10px] right-0 w-20 h-20 opacity-90" />}
                 </div>
 
                 <div className="flex items-center justify-start mt-4">
@@ -98,9 +91,11 @@ const InvoiceTemplate = ({ project, client, isPersonal = false }: InvoiceTemplat
                     <p>お支払期限: {dueDate}</p>
                     <p>版権担当者: {personInCharge}</p>
                   </div>
-                  <div className="ml-4">
-                    <img src={companyLogoUrl} alt="会社ロゴ" className="w-auto h-16" />
-                  </div>
+                  {settings.logoUrl && (
+                    <div className="ml-4">
+                      <img src={settings.logoUrl} alt="会社ロゴ" className="w-auto h-16" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -157,7 +152,7 @@ const InvoiceTemplate = ({ project, client, isPersonal = false }: InvoiceTemplat
               </thead>
               <tbody>
                 <tr>
-                  <td className="p-1 text-center border-r border-black">10%</td>
+                  <td className="p-1 text-center border-r border-black">{taxRate}%</td>
                   <td className="p-1 text-right">¥{formatCurrency(subtotal)}</td>
                   <td className="p-1 text-right">¥{formatCurrency(tax)}</td>
                   <td className="p-1 text-right">¥{formatCurrency(total)}</td>
@@ -180,20 +175,22 @@ const InvoiceTemplate = ({ project, client, isPersonal = false }: InvoiceTemplat
             </div>
           </div>
         </section>
-        
+
         <footer className="mt-8 space-y-4">
           <div>
             <p className="mb-1 font-bold">振込先</p>
             <div className="p-3 border border-black">
-              <p>みずほ銀行 浦和支店</p>
-              <p>普通預金 1097361</p>
-              <p>株式会社 亜細亜堂</p>
-              <p>カ)アジアドウ</p>
+              <BankAccountLines settings={settings} />
             </div>
           </div>
           <div>
             <p className="mb-1 font-bold">備考</p>
-            <div className="h-24 p-3 whitespace-pre-wrap border border-black">{project.remarks}</div>
+            <div className="h-24 p-3 whitespace-pre-wrap border border-black">
+              {reissuedFrom && (
+                <p className="mb-1">※本請求書は、請求書番号 {reissuedFrom.invoiceNumber ?? project.projectId}（{reissuedFrom.issueDate} 発行）の取消に伴う再発行です。</p>
+              )}
+              {project.remarks}
+            </div>
           </div>
         </footer>
 

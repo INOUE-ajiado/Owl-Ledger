@@ -9,7 +9,10 @@ import {
   BookText,
   KeyRound,
   LogOut,
-  History
+  History,
+  Truck,
+  FileSearch,
+  Settings,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -35,39 +38,23 @@ const handleLogout = async () => {
 
 const Sidebar = ({ activeView, setView, permissions }: SidebarProps) => {
 
-  const allNavItems = [
-    { id: 'projects', label: 'プロジェクト一覧', icon: ClipboardList },
-    { id: 'clients', label: 'クライアント管理', icon: Users },
-    { id: 'ledger', label: '出納帳', icon: BookText },
-    { id: 'permissions', label: 'アクセス権限', icon: KeyRound },
-    { id: 'dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
-    { id: 'logs', label: '実行ログ', icon: History },
+  // area: 表示に必要な画面権限 / admin: 管理者のみ
+  const allNavItems: { id: ViewType; label: string; icon: typeof ClipboardList; area?: keyof PermissionSet; admin?: boolean }[] = [
+    { id: 'projects', label: 'プロジェクト一覧', icon: ClipboardList, area: 'projects' },
+    { id: 'clients', label: 'クライアント管理', icon: Users, area: 'clients' },
+    { id: 'vendors', label: '外注先管理', icon: Truck, area: 'clients' },
+    { id: 'ledger', label: '出納帳', icon: BookText, area: 'ledger' },
+    { id: 'ledger-search', label: '証憑検索', icon: FileSearch, area: 'ledger' },
+    { id: 'dashboard', label: 'ダッシュボード', icon: LayoutDashboard, area: 'dashboard' },
+    { id: 'permissions', label: 'アクセス権限', icon: KeyRound, admin: true },
+    { id: 'logs', label: '実行ログ・変更履歴', icon: History, admin: true },
+    { id: 'settings', label: '会社設定', icon: Settings, admin: true },
   ];
 
   const navItems = allNavItems.filter(item => {
-
-    // システム管理権限 (permissions) の値を取得
-    const systemPerm = permissions?.permissions?.permissions;
-
-    // その他のページ（dashboard, projects, clients, ledger）の権限値を取得
-    const pagePerm = permissions?.permissions?.[item.id as keyof PermissionSet];
-
-    // --- フィルターロジック ---
-
-    if (item.id === 'permissions' || item.id === 'logs') {
-      // 'permissions' と 'logs' は systemPerm に依存
-      if (systemPerm !== 'write') {
-        return false;
-      }
-      return true;
-    }
-
-    // その他のページは pagePerm に依存
-    if (!pagePerm || pagePerm === 'disabled') {
-      return false;
-    }
-
-    return true;
+    if (item.admin) return permissions?.isAdmin === true;
+    const pagePerm = item.area ? permissions?.permissions?.[item.area] : undefined;
+    return !!pagePerm && pagePerm !== 'disabled';
   });
 
   return (
@@ -79,13 +66,13 @@ const Sidebar = ({ activeView, setView, permissions }: SidebarProps) => {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const IconComponent = item.icon;
           return (
             <button
               key={item.id}
-              onClick={() => setView(item.id as ViewType)}
+              onClick={() => setView(item.id)}
               className={`flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${activeView === item.id ? 'bg-earth-500 text-white shadow-md transform scale-[1.02]' : 'text-earth-700 hover:bg-white/40 hover:text-earth-900'}`}
             >
               <IconComponent className="w-5 h-5" />

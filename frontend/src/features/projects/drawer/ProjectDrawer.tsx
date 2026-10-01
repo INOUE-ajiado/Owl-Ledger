@@ -9,9 +9,12 @@ interface ProjectDrawerProps {
   onClose: () => void;
   onEdit: (project: Project) => void;
   onOpenPOModal: () => void;
+  canEdit: boolean;
+  isAdmin: boolean;
+  onCopyLink: () => void;
 }
 
-const ProjectDrawer = ({ project, allProjects, onClose, onEdit, onOpenPOModal }: ProjectDrawerProps) => {
+const ProjectDrawer = ({ project, allProjects, onClose, onEdit, onOpenPOModal, canEdit, isAdmin, onCopyLink }: ProjectDrawerProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -33,11 +36,11 @@ const ProjectDrawer = ({ project, allProjects, onClose, onEdit, onOpenPOModal }:
         className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ease-in-out ${isOpen ? 'opacity-100' : 'opacity-0'}`} 
         onClick={handleClose}
       ></div>
-      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
+      <div className="fixed inset-y-0 right-0 flex max-w-full pl-0 sm:pl-10">
         <div className={`relative w-screen max-w-2xl transform transition duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
             {project.projectType === 'master' 
-                ? <MasterProjectView project={project} allProjects={allProjects} onClose={handleClose} onEdit={onEdit} />
-                : <StandardProjectView project={project} onClose={handleClose} onEdit={onEdit} onOpenPOModal={onOpenPOModal} />
+                ? <MasterProjectView project={project} allProjects={allProjects} onClose={handleClose} onEdit={onEdit} canEdit={canEdit} />
+                : <StandardProjectView project={project} onClose={handleClose} onEdit={onEdit} onOpenPOModal={onOpenPOModal} canEdit={canEdit} isAdmin={isAdmin} onCopyLink={onCopyLink} />
             }
         </div>
       </div>

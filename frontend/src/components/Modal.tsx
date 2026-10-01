@@ -24,11 +24,13 @@ const ProgressBar = () => (
 const Modal = ({ isOpen, options, onClose }: ModalProps) => {
   if (!isOpen || !options) return null;
 
+  // 先に閉じてから処理する。処理の中で出した成功・エラーのモーダルを、閉じる処理で消さないため
   const handleConfirm = async () => {
-    if (options.onConfirm) {
-      await options.onConfirm();
-    }
+    const onConfirm = options.onConfirm;
     onClose();
+    if (onConfirm) {
+      await onConfirm();
+    }
   };
 
 

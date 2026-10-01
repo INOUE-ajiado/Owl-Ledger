@@ -1,6 +1,5 @@
 import type { Project, Client } from '../../types';
-
-const companyLogoUrl = '/assets/company-logo.png';
+import { useCompanySettings } from '../../hooks/useCompanySettings';
 
 interface ShippingSlipTemplateProps {
     project: Project;
@@ -8,6 +7,7 @@ interface ShippingSlipTemplateProps {
 }
 
 const ShippingSlipTemplate = ({ project, client }: ShippingSlipTemplateProps) => {
+    const { settings } = useCompanySettings();
     const issueDateStr = new Date().toLocaleDateString('ja-JP', {
         year: 'numeric',
         month: '2-digit',
@@ -38,16 +38,16 @@ const ShippingSlipTemplate = ({ project, client }: ShippingSlipTemplateProps) =>
 
                     <div className="w-1/2 text-right">
                         <div className="inline-block text-left border-l-2 border-gray-300 pl-6">
-                            <p className="font-bold text-lg mb-2">株式会社亜細亜堂</p>
-                            <p>〒338-0012</p>
-                            <p>埼玉県さいたま市中央区大戸2丁目11-7</p>
-                            <p>TEL: 048-855-3388</p>
+                            <p className="font-bold text-lg mb-2">{settings.companyName}</p>
+                            {settings.postalCode && <p>〒{settings.postalCode}</p>}
+                            <p>{settings.address}</p>
+                            {settings.tel && <p>TEL: {settings.tel}</p>}
                             <div className="mt-4 flex items-center justify-end">
                                 <div className="mr-4 text-right">
-                                    <p>発行元: 井上 賢治</p>
+                                    <p>発行元: {project.copyrightManager || ''}</p>
                                     <p>発行日: {issueDateStr}</p>
                                 </div>
-                                <img src={companyLogoUrl} alt="会社ロゴ" className="w-auto h-16" />
+                                {settings.logoUrl && <img src={settings.logoUrl} alt="会社ロゴ" className="w-auto h-16" />}
                             </div>
                         </div>
                     </div>

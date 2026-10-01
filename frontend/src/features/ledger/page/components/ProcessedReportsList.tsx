@@ -39,7 +39,8 @@ export const ProcessedReportsList = ({
                   <button onClick={() => onCopyUrl(report.id)} className={iconButton} title="URLコピー">
                     <Copy size={16} />
                   </button>
-                  {(isMasterUser || (canWrite && report.status === '承認待ち')) && (
+                  {/* 承認済み・経理提出済みは保存義務があるため削除不可 */}
+                  {(isMasterUser || canWrite) && report.status === '承認待ち' && (
                     <button onClick={() => onDeleteReport(report)} className={`${iconButton} hover:text-red-600`} title="削除">
                       <Trash2 size={16} />
                     </button>

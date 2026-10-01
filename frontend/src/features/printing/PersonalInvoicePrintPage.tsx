@@ -66,7 +66,7 @@ const PersonalInvoicePrintPage = () => {
 
   useEffect(() => {
     if (mockProject) {
-      const subName = mockProject.title.split(/[\s　]+/).pop() || mockProject.title;
+      const subName = mockProject.title.split(/[\s\u3000]+/).pop() || mockProject.title;
       document.title = `【請求書】${subName}`;
     }
   }, [mockProject]);
@@ -95,7 +95,12 @@ const PersonalInvoicePrintPage = () => {
 
       <div className="flex justify-center w-full py-8 print:py-0 print:bg-white">
         {/* isPersonal={true} で「様」表記・住所なしにする */}
-        <InvoiceTemplate project={mockProject} client={mockClient} isPersonal={true} />
+        <InvoiceTemplate
+          project={mockProject}
+          client={mockClient}
+          isPersonal={true}
+          documentNumber={`${mockProject.projectId}-${String(targetIndex + 1).padStart(2, '0')}`}
+        />
       </div>
       
       <style>{`

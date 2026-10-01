@@ -1,10 +1,9 @@
 import type { Project, BreakdownItem } from '../../types';
+import { useCompanySettings } from '../../hooks/useCompanySettings';
+import { endOfNextMonth, formatYen, formatYmdSlash, splitTax } from '../../utils/money';
+import { BankAccountLines } from './CompanyInfo';
 
-const companyLogoUrl = '/assets/company-logo.png';
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('ja-JP').format(Math.round(amount));
-};
+const formatCurrency = formatYen;
 
 interface PersonalInvoiceTemplateProps {
   project: Project;
@@ -12,16 +11,15 @@ interface PersonalInvoiceTemplateProps {
 }
 
 const PersonalInvoiceTemplate = ({ project, item }: PersonalInvoiceTemplateProps) => {
-  const issueDate = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  // 支払期限（例：翌月末）
-  const nextMonth = new Date();
-  nextMonth.setMonth(nextMonth.getMonth() + 2, 0); 
-  const dueDate = nextMonth.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  const { settings } = useCompanySettings();
+  const today = new Date();
+  const issueDate = formatYmdSlash(today);
+  // 支払期限: 翌月末
+  const dueDate = formatYmdSlash(endOfNextMonth(today));
 
-  // 内訳の金額を請求総額とします
+  // 内訳の金額 (税込) を請求総額とする
   const totalAmount = item.amount;
-  // 内税計算（消費税10%）
-  const subtotal = Math.round(totalAmount / 1.1);
+  const subtotal = Math.round(splitTax(totalAmount, 'inclusive', settings.taxRate).subtotal);
   const tax = totalAmount - subtotal;
 
   return (
@@ -39,13 +37,14 @@ const PersonalInvoiceTemplate = ({ project, item }: PersonalInvoiceTemplateProps
 
           <div className="flex justify-end w-1/2 text-right">
             <div className="relative">
-               <p className="text-lg font-bold">株式会社亜細亜堂</p>
-               <p>〒338-0012</p>
-               <p>埼玉県さいたま市中央区大戸2丁目11-7</p>
-               <p>TEL: 048-855-3388</p>
+               <p className="text-lg font-bold">{settings.companyName}</p>
+               {settings.registrationNumber && <p>登録番号: {settings.registrationNumber}</p>}
+               {settings.postalCode && <p>〒{settings.postalCode}</p>}
+               <p>{settings.address}</p>
+               {settings.tel && <p>TEL: {settings.tel}</p>}
                <p className="mt-2">発行日: {issueDate}</p>
                <p>管理ID: {project.projectId}-{String(project.breakdown.indexOf(item) + 1).padStart(2, '0')}</p>
-               <img src={companyLogoUrl} alt="Logo" className="absolute top-0 right-[-60px] w-12 opacity-80" />
+               {settings.logoUrl && <img src={settings.logoUrl} alt="Logo" className="absolute top-0 right-[-60px] w-12 opacity-80" />}
             </div>
           </div>
         </div>
@@ -87,7 +86,7 @@ const PersonalInvoiceTemplate = ({ project, item }: PersonalInvoiceTemplateProps
              </tr>
              <tr>
                 <td colSpan={2} className="border-none"></td>
-                <td className="p-2 text-center bg-gray-100 border border-black">消費税(10%)</td>
+                <td className="p-2 text-center bg-gray-100 border border-black">消費税({settings.taxRate}%)</td>
                 <td className="p-2 text-right border border-black">¥{formatCurrency(tax)}</td>
              </tr>
              <tr>
@@ -100,9 +99,7 @@ const PersonalInvoiceTemplate = ({ project, item }: PersonalInvoiceTemplateProps
 
         <div className="p-4 border border-black">
           <p className="mb-2 font-bold">【お振込先】</p>
-          <p>みずほ銀行 浦和支店</p>
-          <p>普通預金 1097361</p>
-          <p>カ)アジアドウ</p>
+          <BankAccountLines settings={settings} />
           <p className="mt-2 text-xs text-gray-600">※ 振込手数料はご負担願います。</p>
         </div>
       </div>

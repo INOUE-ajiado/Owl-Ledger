@@ -8,6 +8,9 @@ import type { LedgerEntry, LedgerReport, UserPermissions } from '../../../types'
 import ProgressBar from '../../../components/ProgressBar';
 import { Menu, X, Printer, CheckCircle, Send } from 'lucide-react';
 import { useModal } from '../../../contexts';
+import { useCompanySettings } from '../../../hooks/useCompanySettings';
+import { resolveStampName } from '../../../api/stampName';
+import { recordChange } from '../../../api/changeHistory';
 import { LedgerReportSheet } from './components/LedgerReportSheet';
 import { ApprovalSidebar } from './components/ApprovalSidebar';
 import { MobileLedgerView } from './components/MobileLedgerView';
@@ -31,6 +34,7 @@ const LedgerApprovalPage = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const { showModal } = useModal();
+  const { settings } = useCompanySettings();
 
   useLayoutEffect(() => {
     const applyScale = () => {
@@ -128,12 +132,15 @@ const LedgerApprovalPage = () => {
     if (window.confirm("この出納帳を承認しますか？")) {
       try {
         const reportRef = doc(db, 'ledgerReports', reportId);
-        const currentUser = auth.currentUser;
-        const approverName = currentUser?.email ? currentUser.email.split('@')[0] : '小澤';
+        const approverName = await resolveStampName(settings.approverStampName);
         await updateDoc(reportRef, {
           status: '承認済み',
           approvedAt: Timestamp.now(),
           approverName: approverName
+        });
+        await recordChange({
+          targetType: 'ledger', targetId: reportId, targetLabel: `出納帳 ${report?.month ?? ''} No.${report?.reportNumber ?? ''}`,
+          action: 'update', changes: [{ field: 'status', before: report?.status ?? '', after: '承認済み' }, { field: 'approverName', before: '', after: approverName }],
         });
         showModal({ title: "成功", message: "承認しました。" });
       } catch (err) {
@@ -154,6 +161,10 @@ const LedgerApprovalPage = () => {
           await updateDoc(reportRef, {
             status: '経理提出済み',
             accountingSubmittedAt: Timestamp.now()
+          });
+          await recordChange({
+            targetType: 'ledger', targetId: reportId, targetLabel: `出納帳 ${report?.month ?? ''} No.${report?.reportNumber ?? ''}`,
+            action: 'update', changes: [{ field: 'status', before: report?.status ?? '', after: '経理提出済み' }],
           });
           showModal({ title: "成功", message: "経理に提出しました。" });
         } catch {

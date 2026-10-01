@@ -40,7 +40,7 @@ const LedgerPage = () => {
   const [approvalLink, setApprovalLink] = useState('');
 
   // 権限・ユーザー判定
-  const isMasterUser = user?.email === 'inoue@ajiado.co.jp';
+  const isMasterUser = permissions?.isAdmin === true;
   const canWrite = permissions?.permissions?.ledger === 'write';
 
   // 初期ターゲット設定
@@ -96,7 +96,7 @@ const LedgerPage = () => {
       title: "提出確認",
       message: "この内容で提出し、承認用リンクを生成しますか？",
       onConfirm: async () => {
-        const success = await actions.submitForApproval(currentReport, user.uid, user.email || '');
+        const success = await actions.submitForApproval(currentReport, user.uid);
         if (success) handleShowApprovalLink(currentReport.id);
       }
     });
@@ -237,7 +237,7 @@ const LedgerPage = () => {
       {!isMasterUser && (
         <p className="flex items-center justify-center gap-1.5 px-4 mt-6 text-xs text-earth-500">
           <Info size={14} className="flex-shrink-0" />
-          登録した出納帳データは、ご本人と管理者のみが閲覧・管理できます。
+          登録した出納帳データは、ご本人と管理者のみが閲覧・管理できます。承認済みの出納帳と添付ファイルは、電子帳簿保存法に基づき削除・変更できません（保存期間 7 年）。
         </p>
       )}
 

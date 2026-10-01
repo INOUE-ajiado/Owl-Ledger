@@ -1,15 +1,20 @@
 import { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { doc, getDoc, updateDoc, collection, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../api/firebase';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { verifyPassword } from '../utils/security';
-import type { Project, Client, FixedInvoiceData, PurchaseOrder } from '../types';
+import type { Project, Client, PurchaseOrder } from '../types';
 import InvoiceTemplate from '../features/printing/InvoiceTemplate';
 import PurchaseOrderTemplate from '../features/printing/PurchaseOrderTemplate';
 import QuotationTemplate from '../features/printing/QuotationTemplate';
 import PersonalInvoiceTemplate from '../features/printing/PersonalInvoiceTemplate';
 import ShippingSlipTemplate from '../features/printing/ShippingSlipTemplate';
+import CreditNoteTemplate from '../features/printing/CreditNoteTemplate';
+import InvoiceCancelModal from '../features/printing/InvoiceCancelModal';
+import { cancelInvoice, ensureQuotationNumber, fixInvoice } from '../features/printing/invoiceActions';
+import { useCompanySettings } from '../hooks/useCompanySettings';
+import { formatYmdDash, parseYmd } from '../utils/money';
 import ProgressBar from '../components/ProgressBar';
 import { useAuth, useModal } from '../contexts';
 import { useReactToPrint } from 'react-to-print';
@@ -24,10 +29,16 @@ const PrintHostPage = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  // 未確定の請求書の請求日 (FIX 時にこの日付で確定する)
+  const [draftIssueDate, setDraftIssueDate] = useState(() => formatYmdDash(new Date()));
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const quotationNumberingRef = useRef(false);
 
   const { permissions } = useAuth();
   const { showModal } = useModal();
-  const canWrite = permissions?.permissions?.projects === 'write';
+  const { settings, loaded: settingsLoaded } = useCompanySettings();
+  // プロジェクトの更新 (FIX・取消・採番) はセキュリティルール上、管理者のみ
+  const canWrite = permissions?.isAdmin === true;
 
   const componentRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,6 +50,7 @@ const PrintHostPage = () => {
       case 'quotation': return '御見積書';
       case 'personal-invoice': return '個人請求書';
       case 'shipping-slip': return '発送伝票';
+      case 'credit-note': return '赤伝';
       default: return 'ドキュメント';
     }
   };
@@ -152,23 +164,16 @@ const PrintHostPage = () => {
     };
   }, [projectId, docType, authLoading]);
 
-  // ★ 追加: 見積書発行日の自動スタンプ
+  // 見積書を初めて開いたときに、見積書番号と初回発行日を記録する
   useEffect(() => {
-    if (loading || !project || docType !== 'quotation' || project.firstQuotationDate || !canWrite) return;
+    if (loading || !project || docType !== 'quotation' || !canWrite) return;
+    if (project.quotationNumber && project.firstQuotationDate) return;
+    if (quotationNumberingRef.current) return;
+    quotationNumberingRef.current = true;
 
-    const stampQuotationDate = async () => {
-      const today = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
-      try {
-        const projectRef = doc(db, 'projects', project.id);
-        await updateDoc(projectRef, { firstQuotationDate: today });
-        setProject(prev => prev ? { ...prev, firstQuotationDate: today } : null);
-        console.log("見積書発行日をスタンプしました:", today);
-      } catch (err) {
-        console.error("見積書発行日の保存に失敗しました:", err);
-      }
-    };
-
-    stampQuotationDate();
+    ensureQuotationNumber(project)
+      .then(updates => setProject(prev => prev ? { ...prev, ...updates } : null))
+      .catch(err => console.error("見積書番号の採番に失敗しました:", err));
   }, [loading, project, docType, canWrite]);
 
   useEffect(() => {
@@ -232,7 +237,7 @@ const PrintHostPage = () => {
 
   useEffect(() => {
     if (project) {
-      const subName = project.title.split(/[\s　]+/).pop() || project.title;
+      const subName = project.title.split(/[\s\u3000]+/).pop() || project.title;
       let label = 'ドキュメント';
       switch (docType) {
         case 'invoice':
@@ -250,6 +255,9 @@ const PrintHostPage = () => {
         case 'shipping-slip':
           label = '発送伝票';
           break;
+        case 'credit-note':
+          label = '赤伝';
+          break;
       }
       document.title = `【${label}】${subName}`;
     }
@@ -257,44 +265,20 @@ const PrintHostPage = () => {
 
   const handleFixInvoice = () => {
     if (!project || !canWrite) return;
+    const issueDate = parseYmd(draftIssueDate);
+    if (!issueDate) {
+      showModal({ title: 'エラー', message: '請求日を正しく入力してください。' });
+      return;
+    }
 
     showModal({
       title: '請求内容の確定',
-      message: 'この内容で請求をFIX（確定）しますか？\nFIXすると、プロジェクトの金額や関連情報が編集できなくなり、ステータスが「請求済」に更新されます。',
+      message: `請求日 ${draftIssueDate.replace(/-/g, '/')} で請求をFIX（確定）しますか？\nFIXすると請求書番号が採番され、金額や関連情報が編集できなくなり、ステータスが「請求済」に更新されます。\n確定後に訂正が必要な場合は「請求を取消」から取り消して再発行できます。`,
       onConfirm: async () => {
-        const issueDate = new Date();
-        const twoMonthsAhead = new Date(issueDate.getFullYear(), issueDate.getMonth() + 2, 1);
-        const lastDayOfNextMonth = new Date(twoMonthsAhead.getTime() - (24 * 60 * 60 * 1000));
-
-        let subtotal: number, tax: number, total: number;
-
-        if (project.taxType === 'inclusive') {
-          total = project.gloss;
-          subtotal = total / 1.1;
-          tax = total - subtotal;
-        } else {
-          subtotal = project.gloss;
-          tax = subtotal * 0.1;
-          total = subtotal + tax;
-        }
-        const fixedData: FixedInvoiceData = {
-          issueDate: issueDate.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-          dueDate: lastDayOfNextMonth.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-          subtotal,
-          tax,
-          total,
-          unitPrice: project.characterCount > 0 ? subtotal / project.characterCount : 0,
-        };
-
         try {
-          const projectRef = doc(db, 'projects', project.id);
-          await updateDoc(projectRef, {
-            isFixed: true,
-            status: '請求済',
-            fixedInvoiceData: fixedData
-          });
-          setProject((prev: Project | null) => prev ? { ...prev, isFixed: true, status: '請求済', fixedInvoiceData: fixedData } : null);
-          showModal({ title: '成功', message: '請求内容をFIXしました。' });
+          const fixedData = await fixInvoice(project, issueDate, settings.taxRate);
+          setProject(prev => prev ? { ...prev, isFixed: true, status: '請求済', fixedInvoiceData: fixedData } : null);
+          showModal({ title: '成功', message: `請求内容をFIXしました。\n請求書番号: ${fixedData.invoiceNumber}` });
         } catch (error) {
           console.error("FIXに失敗しました:", error);
           showModal({ title: 'エラー', message: 'FIX処理中にエラーが発生しました。' });
@@ -303,11 +287,41 @@ const PrintHostPage = () => {
     });
   };
 
+  const handleCancelInvoice = async (reason: string, withCreditNote: boolean) => {
+    if (!project) return;
+    try {
+      const record = await cancelInvoice(project, reason, withCreditNote);
+      setProject(prev => prev ? {
+        ...prev, isFixed: false, status: '完了', fixedInvoiceData: undefined,
+        invoiceHistory: [...(prev.invoiceHistory ?? []), record],
+      } : null);
+      setIsCancelOpen(false);
+      showModal({
+        title: '取消しました',
+        message: record.creditNoteNumber
+          ? `請求書 ${record.invoiceNumber} を取り消し、赤伝 ${record.creditNoteNumber} を発行しました。赤伝は別タブで開きます。`
+          : `請求書 ${record.invoiceNumber} を取り消しました。内容を修正して再度FIXしてください。`,
+      });
+      if (record.creditNoteNumber) {
+        window.open(`/print/credit-note/${project.id}?no=${encodeURIComponent(record.creditNoteNumber)}`, '_blank');
+      }
+    } catch (error) {
+      console.error("請求書の取消に失敗しました:", error);
+      showModal({ title: 'エラー', message: '請求書の取消に失敗しました。' });
+    }
+  };
+
   const renderTemplate = () => {
     if (!project) return null;
     switch (docType) {
       case 'invoice':
-        return client ? <InvoiceTemplate project={project} client={client} /> : null;
+        return client ? <InvoiceTemplate project={project} client={client} draftIssueDate={parseYmd(draftIssueDate) ?? undefined} /> : null;
+      case 'credit-note': {
+        const no = new URLSearchParams(location.search).get('no');
+        const record = project.invoiceHistory?.find(r => r.creditNoteNumber === no);
+        if (!record) return <div className="p-10 bg-white">赤伝が見つかりません。</div>;
+        return client ? <CreditNoteTemplate project={project} client={client} record={record} /> : null;
+      }
       case 'quotation':
         return client ? <QuotationTemplate project={project} client={client} /> : null;
       case 'purchase-order': {
@@ -319,7 +333,7 @@ const PrintHostPage = () => {
         if (!po) return <div>発注書データを読み込んでいます...</div>;
 
         const items = po.includedIndices.map(i => project.breakdown[i]);
-        return <PurchaseOrderTemplate project={project} items={items} />;
+        return <PurchaseOrderTemplate project={project} items={items} po={po} />;
       }
       case 'personal-invoice': {
         const params = new URLSearchParams(location.search);
@@ -337,7 +351,7 @@ const PrintHostPage = () => {
     }
   };
 
-  if (authLoading || loading) {
+  if (authLoading || loading || !settingsLoaded) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
         <div className="w-full max-w-md p-8 space-y-4">
@@ -392,14 +406,32 @@ const PrintHostPage = () => {
       `}</style>
       <div className="p-4 text-center text-white bg-gray-800 no-print">
         <p>{getPageTitle()} プレビュー</p>
-        <div className="mt-2 space-x-4">
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
           {docType === 'invoice' && canWrite && !project.isFixed && (
-            <button onClick={handleFixInvoice} className="px-4 py-2 bg-yellow-500 rounded hover:bg-yellow-600">
-              FIX
-            </button>
+            <>
+              <label className="inline-flex items-center gap-2 text-sm">
+                請求日
+                <input type="date" value={draftIssueDate} onChange={e => setDraftIssueDate(e.target.value)} className="px-2 py-1 text-gray-900 rounded" />
+              </label>
+              <button onClick={handleFixInvoice} className="px-4 py-2 bg-yellow-500 rounded hover:bg-yellow-600">
+                FIX
+              </button>
+            </>
+          )}
+          {docType === 'invoice' && !project.isFixed && (
+            <span className="px-3 py-1 text-xs font-semibold text-gray-900 bg-yellow-200 rounded">未確定 (下書き)</span>
           )}
           {project.isFixed && docType === 'invoice' && (
-            <span className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded">FIX済み</span>
+            <>
+              <span className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded">
+                FIX済み {project.fixedInvoiceData?.invoiceNumber ?? project.projectId}
+              </span>
+              {canWrite && (
+                <button onClick={() => setIsCancelOpen(true)} className="px-4 py-2 bg-red-600 rounded hover:bg-red-700">
+                  請求を取消
+                </button>
+              )}
+            </>
           )}
           <button
             onClick={() => handlePrint()}
@@ -409,6 +441,9 @@ const PrintHostPage = () => {
           </button>
         </div>
       </div>
+      {settings.companyName === '' && canWrite && (
+        <p className="p-2 text-sm text-center text-yellow-900 bg-yellow-100 no-print">会社設定が未登録のため、発行元が空欄です。「会社設定」から登録してください。</p>
+      )}
       <div className="w-full max-w-[210mm] mx-auto p-4 md:p-8 no-print printable-container">
         <div ref={containerRef} className="w-full">
           <div ref={componentRef} className="shadow-lg scaled-for-screen">
@@ -416,6 +451,13 @@ const PrintHostPage = () => {
           </div>
         </div>
       </div>
+      {isCancelOpen && project.fixedInvoiceData && (
+        <InvoiceCancelModal
+          invoiceNumber={project.fixedInvoiceData.invoiceNumber ?? project.projectId}
+          onClose={() => setIsCancelOpen(false)}
+          onConfirm={handleCancelInvoice}
+        />
+      )}
     </div>
   );
 };

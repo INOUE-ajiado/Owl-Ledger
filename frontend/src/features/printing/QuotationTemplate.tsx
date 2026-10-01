@@ -1,10 +1,9 @@
 import type { Project, Client } from '../../types';
+import { useCompanySettings } from '../../hooks/useCompanySettings';
+import { formatYen, splitTax } from '../../utils/money';
+import { CompanyAddress } from './CompanyInfo';
 
-const companyLogoUrl = '/assets/company-logo.png';
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('ja-JP').format(Math.round(amount));
-};
+const formatCurrency = formatYen;
 
 interface QuotationTemplateProps {
   project: Project;
@@ -12,26 +11,17 @@ interface QuotationTemplateProps {
 }
 
 const QuotationTemplate = ({ project, client }: QuotationTemplateProps) => {
+  const { settings } = useCompanySettings();
+  const taxRate = settings.taxRate;
 
   const issueDateStr = project.firstQuotationDate || new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
-  let subtotal: number;
-  let tax: number;
-  let total: number;
-
-  if (project.taxType === 'inclusive') {
-    total = project.gloss;
-    subtotal = total / 1.1;
-    tax = total - subtotal;
-  } else {
-    subtotal = project.gloss;
-    tax = subtotal * 0.1;
-    total = subtotal + tax;
-  }
+  const { subtotal, tax, total } = splitTax(project.gloss, project.taxType, taxRate);
 
   const unitPrice = project.characterCount > 0 ? subtotal / project.characterCount : 0;
 
-  const quotationNumber = project.projectId;
+  // 見積書番号は請求書番号と別に採番する (採番前の旧データは伝票IDで発行済み)
+  const quotationNumber = project.quotationNumber ?? project.projectId;
   const personInCharge = project.copyrightManager || '';
 
   // --- 修正箇所：納品日の表示優先ロジック ---
@@ -58,10 +48,7 @@ const QuotationTemplate = ({ project, client }: QuotationTemplateProps) => {
               <div className="text-left w-[350px]">
                 <div className="relative">
                   <div className="pl-4">
-                    <p className="font-bold">株式会社亜細亜堂</p>
-                    <p className="mt-2">〒338-0012</p>
-                    <p>埼玉県さいたま市中央区大戸2丁目11-7</p>
-                    <p>TEL: 048-855-3388</p>
+                    <CompanyAddress settings={settings} />
                   </div>
                 </div>
 
@@ -71,9 +58,11 @@ const QuotationTemplate = ({ project, client }: QuotationTemplateProps) => {
                     <p>発行日: {issueDateStr}</p>
                     <p>版権担当者: {personInCharge}</p>
                   </div>
-                  <div className="ml-4">
-                    <img src={companyLogoUrl} alt="会社ロゴ" className="w-auto h-16" />
-                  </div>
+                  {settings.logoUrl && (
+                    <div className="ml-4">
+                      <img src={settings.logoUrl} alt="会社ロゴ" className="w-auto h-16" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -131,7 +120,7 @@ const QuotationTemplate = ({ project, client }: QuotationTemplateProps) => {
               </thead>
               <tbody>
                 <tr>
-                  <td className="p-1 text-center border-r border-black">10%</td>
+                  <td className="p-1 text-center border-r border-black">{taxRate}%</td>
                   <td className="p-1 text-right">¥{formatCurrency(subtotal)}</td>
                   <td className="p-1 text-right">¥{formatCurrency(tax)}</td>
                   <td className="p-1 text-right">¥{formatCurrency(total)}</td>

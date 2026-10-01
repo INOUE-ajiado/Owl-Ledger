@@ -2,12 +2,9 @@ import { useEffect } from 'react';
 import type { UseFormReturn, Path, PathValue } from 'react-hook-form';
 import type { BreakdownItem } from '../../../types';
 import type { ProjectFormValues } from './types';
+import { calcNegotiationFee, formatYen as formatCurrency, toTaxExclusive } from '../../../utils/money';
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('ja-JP').format(Math.round(amount));
-};
-
-export const useProjectCalculations = ({ watch, setValue, getValues }: UseFormReturn<ProjectFormValues>) => {
+export const useProjectCalculations = ({ watch, setValue, getValues }: UseFormReturn<ProjectFormValues>, taxRate: number) => {
   
   const watchedValues = watch();
   
@@ -62,8 +59,7 @@ export const useProjectCalculations = ({ watch, setValue, getValues }: UseFormRe
         }
       });
       
-      const negotiationFeeRaw = allocatedAmount * (negotiationFeeRate / 100);
-      const negotiationFee = Math.max(4000, Math.min(10000, negotiationFeeRaw));
+      const negotiationFee = calcNegotiationFee(allocatedAmount, negotiationFeeRate);
       safeSetValue('margin', formatCurrency(margin - negotiationFee));
       safeSetValue('net', formatCurrency(totalNet));
       safeSetValue('netUnitPrice', formatCurrency(totalNet / characterCount));
@@ -71,7 +67,7 @@ export const useProjectCalculations = ({ watch, setValue, getValues }: UseFormRe
       safeSetValue('netRate', 100 - newMarginRate);
 
     } else {
-      const glossExclusive = taxType === 'inclusive' ? gloss / 1.1 : gloss;
+      const glossExclusive = toTaxExclusive(gloss, taxType, taxRate);
       const netTotal = glossExclusive * ((100 - marginRate) / 100);
       const margin = glossExclusive - netTotal;
       
@@ -94,8 +90,7 @@ export const useProjectCalculations = ({ watch, setValue, getValues }: UseFormRe
         });
       }
       
-      const negotiationFeeRaw = glossExclusive * (negotiationFeeRate / 100);
-      const negotiationFee = Math.max(4000, Math.min(10000, negotiationFeeRaw));
+      const negotiationFee = calcNegotiationFee(glossExclusive, negotiationFeeRate);
       safeSetValue('margin', formatCurrency(margin - negotiationFee));
       safeSetValue('net', formatCurrency(netTotal));
       safeSetValue('netUnitPrice', formatCurrency(netTotal / characterCount));
@@ -111,7 +106,8 @@ export const useProjectCalculations = ({ watch, setValue, getValues }: UseFormRe
     marginRate, 
     breakdownJson, 
     negotiationFeeRate,
-    setValue, 
+    taxRate,
+    setValue,
     getValues
   ]);
 };

@@ -1,6 +1,5 @@
 import type { Project } from '../../types';
-
-const companySealUrl = '/assets/company-seal.png'; // 印影画像のパス
+import { useCompanySettings } from '../../hooks/useCompanySettings';
 
 interface ReceiptTemplateProps {
   project: Project;      // プロジェクト情報
@@ -19,6 +18,7 @@ const formatDate = (dateString: string | undefined) => {
 };
 
 const ReceiptTemplate = ({ project, recipientName, amount }: ReceiptTemplateProps) => {
+  const { settings } = useCompanySettings();
   const issueDate = formatDate(new Date().toISOString());
 
   return (
@@ -76,19 +76,22 @@ const ReceiptTemplate = ({ project, recipientName, amount }: ReceiptTemplateProp
         {/* 発行者情報 */}
         <div className="absolute bottom-8 right-8 text-right w-[300px]">
           <div className="relative inline-block text-left">
-            <p className="mb-1 text-lg font-bold">株式会社亜細亜堂</p>
+            <p className="mb-1 text-lg font-bold">{settings.companyName}</p>
             <p className="text-xs leading-relaxed">
-              〒338-0012<br/>
-              埼玉県さいたま市中央区大戸2丁目11-7<br/>
-              TEL: 048-855-3388
+              {settings.postalCode && <>〒{settings.postalCode}<br/></>}
+              {settings.address}<br/>
+              {settings.tel && <>TEL: {settings.tel}</>}
             </p>
+            {settings.registrationNumber && <p className="text-xs">登録番号: {settings.registrationNumber}</p>}
             
             {/* 角印 (右上に配置) */}
-            <img 
-              src={companySealUrl} 
-              alt="印" 
-              className="absolute top-0 right-[-10px] w-20 h-20 opacity-80 mix-blend-multiply" 
-            />
+            {settings.sealUrl && (
+              <img
+                src={settings.sealUrl}
+                alt="印"
+                className="absolute top-0 right-[-10px] w-20 h-20 opacity-80 mix-blend-multiply"
+              />
+            )}
           </div>
         </div>
 

@@ -1,22 +1,31 @@
-import type { Project, BreakdownItem } from '../../types';
+import type { Project, BreakdownItem, PurchaseOrder } from '../../types';
+import { useCompanySettings } from '../../hooks/useCompanySettings';
+import { formatYen, formatYmdSlash } from '../../utils/money';
 
-const companyLogoUrl = '/assets/company-logo.png';
+const formatCurrency = formatYen;
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('ja-JP').format(Math.round(amount));
-};
-
-interface PurchaseOrderTemplateProps {  
+interface PurchaseOrderTemplateProps {
   project: Project;
   items: BreakdownItem[];
+  po: PurchaseOrder;
 }
 
-const PurchaseOrderTemplate = ({ project, items }: PurchaseOrderTemplateProps) => {
+const PurchaseOrderTemplate = ({ project, items, po }: PurchaseOrderTemplateProps) => {
+  const { settings } = useCompanySettings();
   if (items.length === 0) return null;
 
-  const issueDate = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/-/g, '/');
-  
+  // 発注日は発行した日 (印刷した日ではない)
+  const issueDate = po.issueDate || formatYmdSlash(new Date(po.issuedAt.seconds * 1000));
+  const poNumber = po.poNumber ?? `${project.projectId}-PO`;
+  const staffName = po.staffName ?? project.copyrightManager ?? '';
+
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+  // 源泉徴収などの支払内訳は、発行時に外注先マスタから計算して発注書に保存している (旧データにはない)
+  const hasPaymentBreakdown = po.withholdingTax !== undefined;
+  const taxRate = po.taxRate ?? settings.taxRate;
+  const tax = po.tax ?? 0;
+  const withholdingTax = po.withholdingTax ?? 0;
+  const paymentAmount = po.paymentAmount ?? totalAmount + tax - withholdingTax;
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const representativeItem = items[0];
 
@@ -33,7 +42,7 @@ const PurchaseOrderTemplate = ({ project, items }: PurchaseOrderTemplateProps) =
             <div className="w-[55%]">
               <div className="flex justify-between items-baseline border-b-2 border-black text-lg font-bold">
                   <span className="flex-1"></span>
-                  <span className="flex-1 text-center">{representativeItem.name} 様</span>
+                  <span className="flex-1 text-center">{po.workerName || representativeItem.name} 様</span>
                   <span className="flex-1 text-right"></span>
               </div>
               <div className="border border-black p-3 mt-6 text-center">
@@ -47,7 +56,7 @@ const PurchaseOrderTemplate = ({ project, items }: PurchaseOrderTemplateProps) =
                 <tbody>
                   <tr>
                     <td className="border border-black px-4 py-1 bg-gray-100 font-semibold">発注No.</td>
-                    <td className="border border-black px-8 py-1 text-center">{project.projectId}-PO</td>
+                    <td className="border border-black px-8 py-1 text-center">{poNumber}</td>
                   </tr>
                   <tr>
                     <td className="border border-black px-4 py-1 bg-gray-100 font-semibold">発注日</td>
@@ -58,13 +67,13 @@ const PurchaseOrderTemplate = ({ project, items }: PurchaseOrderTemplateProps) =
               
               <div className="pt-4 self-auto">
                 <div className="relative">
-                    <img src={companyLogoUrl} alt="会社印" className="absolute -top-4 right-0 w-14 h-14 opacity-90" />
+                    {settings.logoUrl && <img src={settings.logoUrl} alt="会社印" className="absolute -top-4 right-0 w-14 h-14 opacity-90" />}
                     <div className="text-left mt-12">
-                      <p className="font-bold">株式会社亜細亜堂</p>
-                      <p>〒338-0012</p>
-                      <p>埼玉県さいたま市中央区大戸 2-11-7</p>
-                      <p>TEL: 048-855-3388</p>
-                      <p className="mt-2">担当: 井上 賢治</p>
+                      <p className="font-bold">{settings.companyName}</p>
+                      {settings.postalCode && <p>〒{settings.postalCode}</p>}
+                      <p>{settings.address}</p>
+                      {settings.tel && <p>TEL: {settings.tel}</p>}
+                      <p className="mt-2">担当: {staffName}</p>
                     </div>
                 </div>
               </div>
@@ -83,7 +92,7 @@ const PurchaseOrderTemplate = ({ project, items }: PurchaseOrderTemplateProps) =
                   </tr>
                   <tr>
                     <td className="border border-black px-4 py-2 bg-gray-100 font-semibold text-center">支払条件</td>
-                    <td className="border border-black px-4 py-2 text-center">月末締め翌月末払い</td>
+                    <td className="border border-black px-4 py-2 text-center">{settings.paymentTerms}</td>
                   </tr>
                     <tr>
                     <td className="border border-black px-4 py-2 bg-gray-100 font-semibold text-center">納期</td>
@@ -136,6 +145,23 @@ const PurchaseOrderTemplate = ({ project, items }: PurchaseOrderTemplateProps) =
             </table>
           </div>
         </section>
+
+        {hasPaymentBreakdown && (
+          <section className="flex justify-end mt-6">
+            <table className="text-xs border-collapse w-80">
+              <caption className="mb-1 font-semibold text-left">お支払額の内訳</caption>
+              <tbody>
+                <tr><td className="px-3 py-1 border border-black bg-gray-100">税抜金額</td><td className="px-3 py-1 text-right border border-black">¥{formatCurrency(totalAmount)}</td></tr>
+                <tr><td className="px-3 py-1 border border-black bg-gray-100">消費税 ({taxRate}%)</td><td className="px-3 py-1 text-right border border-black">¥{formatCurrency(tax)}</td></tr>
+                <tr><td className="px-3 py-1 border border-black bg-gray-100">源泉徴収税額</td><td className="px-3 py-1 text-right border border-black">{withholdingTax > 0 ? `-¥${formatCurrency(withholdingTax)}` : '対象外'}</td></tr>
+                <tr className="font-bold"><td className="px-3 py-1 border border-black bg-gray-100">差引お支払額</td><td className="px-3 py-1 text-right border border-black">¥{formatCurrency(paymentAmount)}</td></tr>
+              </tbody>
+            </table>
+          </section>
+        )}
+        {po.invoiceRegistrationNumber && (
+          <p className="mt-2 text-xs text-right">貴社登録番号: {po.invoiceRegistrationNumber}</p>
+        )}
 
       </div>
     </div>

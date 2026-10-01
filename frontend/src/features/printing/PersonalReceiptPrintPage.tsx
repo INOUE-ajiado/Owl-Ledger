@@ -50,7 +50,7 @@ const PersonalReceiptPrintPage = () => {
 
   useEffect(() => {
     if (project) {
-      const subName = project.title.split(/[\s　]+/).pop() || project.title;
+      const subName = project.title.split(/[\s\u3000]+/).pop() || project.title;
       document.title = `【領収書】${subName}`;
     }
   }, [project]);

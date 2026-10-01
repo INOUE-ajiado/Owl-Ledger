@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signInWithEmailLink, isSignInWithEmailLink, type User } from 'firebase/auth';
 import { auth, db, rtDb, getUserStatusRef } from './api/firebase';
@@ -7,19 +7,30 @@ import { ref as dbRef, onDisconnect, set, onValue, serverTimestamp } from "fireb
 import type { UserPermissions, ModalOptions } from './types';
 import { AuthContext, ModalContext } from './contexts';
 import AppLayout from './components/AppLayout';
-import ClientPage from './pages/ClientPage';
-import ProjectPage from './pages/ProjectPage';
-import DashboardPage from './pages/DashboardPage';
 import LoginPage from './pages/LoginPage';
-import PermissionsPage from './pages/PermissionsPage';
-import PrintHostPage from './pages/PrintHostPage';
 import Modal from './components/Modal';
-import LedgerPage from './features/ledger/page/LedgerPage';
-import OrderConfirmationApprovalPage from './features/projects/approval/OrderConfirmationApprovalPage';
-import PersonalInvoicePrintPage from './features/printing/PersonalInvoicePrintPage';
-import PersonalReceiptPrintPage from './features/printing/PersonalReceiptPrintPage';
-import LedgerApprovalPage from './features/ledger/approval/LedgerApprovalPage';
-import ActivityLogPage from './features/admin/ActivityLogPage'; // ★ ログページを追加
+
+// ページ単位で分割して読み込み、初回表示を軽くする
+const ClientPage = lazy(() => import('./pages/ClientPage'));
+const ClientDetailPage = lazy(() => import('./pages/ClientDetailPage'));
+const VendorPage = lazy(() => import('./pages/VendorPage'));
+const VendorDetailPage = lazy(() => import('./pages/VendorDetailPage'));
+const ProjectPage = lazy(() => import('./pages/ProjectPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const PermissionsPage = lazy(() => import('./pages/PermissionsPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const PrintHostPage = lazy(() => import('./pages/PrintHostPage'));
+const LedgerPage = lazy(() => import('./features/ledger/page/LedgerPage'));
+const LedgerSearchPage = lazy(() => import('./features/ledger/search/LedgerSearchPage'));
+const OrderConfirmationApprovalPage = lazy(() => import('./features/projects/approval/OrderConfirmationApprovalPage'));
+const PersonalInvoicePrintPage = lazy(() => import('./features/printing/PersonalInvoicePrintPage'));
+const PersonalReceiptPrintPage = lazy(() => import('./features/printing/PersonalReceiptPrintPage'));
+const LedgerApprovalPage = lazy(() => import('./features/ledger/approval/LedgerApprovalPage'));
+const ActivityLogPage = lazy(() => import('./features/admin/ActivityLogPage'));
+
+const PageLoading = () => (
+  <div className="flex items-center justify-center w-full h-full min-h-[50vh] text-sm text-earth-500">読み込み中...</div>
+);
 
 const describeEmailLinkError = (error: unknown): string => {
   const code = (error as { code?: string })?.code;
@@ -105,7 +116,8 @@ function App() {
               setPermissions({
                 email: currentUser.email,
                 uid: currentUser.uid,
-                permissions: permData.permissions
+                permissions: permData.permissions,
+                isAdmin: permData.isAdmin === true,
               });
 
               if (!permData.uid) {
@@ -165,20 +177,24 @@ function App() {
     <AuthContext.Provider value={{ user, permissions }}>
       <ModalContext.Provider value={{ showModal }}>
         <BrowserRouter>
+          <Suspense fallback={<PageLoading />}>
           <Routes>
             {/* --- 通常ルート (要ログイン/権限) --- */}
             <Route path="/" element={user ? <AppLayout permissions={permissions} /> : <Navigate to="/login" />}>
               <Route index element={<DashboardPage />} />
               {permissions?.permissions?.dashboard !== 'disabled' && <Route path="dashboard" element={<DashboardPage />} />}
-              {permissions?.permissions?.projects !== 'disabled' && <Route path="projects" element={<ProjectPage />} />}
+              {/* 同じページのままドロワーを開閉できるよう、プロジェクトIDは省略可能なパラメータにする */}
+              {permissions?.permissions?.projects !== 'disabled' && <Route path="projects/:projectId?" element={<ProjectPage />} />}
               {permissions?.permissions?.clients !== 'disabled' && <Route path="clients" element={<ClientPage />} />}
+              {permissions?.permissions?.clients !== 'disabled' && <Route path="clients/:clientId" element={<ClientDetailPage />} />}
+              {permissions?.permissions?.clients !== 'disabled' && <Route path="vendors" element={<VendorPage />} />}
+              {permissions?.permissions?.clients !== 'disabled' && <Route path="vendors/:vendorId" element={<VendorDetailPage />} />}
               {permissions?.permissions?.ledger !== 'disabled' && <Route path="ledger" element={<LedgerPage />} />}
-              {permissions?.permissions?.permissions === 'write' && (
-                <Route path="permissions" element={<PermissionsPage />} />
-              )}
-              {permissions?.permissions?.permissions === 'write' && ( // ★ ログルートを追加
-                <Route path="logs" element={<ActivityLogPage />} />
-              )}
+              {permissions?.permissions?.ledger !== 'disabled' && <Route path="ledger-search" element={<LedgerSearchPage />} />}
+              {/* 管理者だけが使うページ (権限・ログ・会社設定) */}
+              {permissions?.isAdmin && <Route path="permissions" element={<PermissionsPage />} />}
+              {permissions?.isAdmin && <Route path="logs" element={<ActivityLogPage />} />}
+              {permissions?.isAdmin && <Route path="settings" element={<SettingsPage />} />}
             </Route>
 
             {/* --- パブリック/特殊なルート --- */}
@@ -190,14 +206,15 @@ function App() {
             {/* Project Order Confirmation Approval Page (承認用URL) */}
             <Route path="/order-confirmation-approval/:projectId" element={<OrderConfirmationApprovalPage />} />
 
-            {/* ★ 1. カスタム印刷ルート (個人請求書/領収書) - 汎用パスより先に定義 */}
+            {/* カスタム印刷ルート (個人請求書/領収書) - 汎用パスより先に定義 */}
             <Route path="/print/personal-invoice/:projectId" element={<PersonalInvoicePrintPage />} />
             <Route path="/print/personal-receipt/:projectId" element={<PersonalReceiptPrintPage />} />
 
-            {/* ★ 2. 汎用印刷ルート (見積書、請求書、発注書など) - カスタムパスの後に定義 */}
+            {/* 汎用印刷ルート (見積書、請求書、赤伝、発注書など) - カスタムパスの後に定義 */}
             <Route path="/print/:docType/:projectId" element={<PrintHostPage />} />
 
           </Routes>
+          </Suspense>
         </BrowserRouter>
         <Modal isOpen={!!modalOptions} options={modalOptions} onClose={closeModal} />
       </ModalContext.Provider>

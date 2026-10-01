@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../api/firebase';
 import type { Project } from '../../types';
+import { useVendors } from '../../hooks/useMasters';
+import { inPeriod, monthsInPeriod, type Period } from '../../utils/period';
 // ★ 修正点: 不要な 'Chart' を削除しました
 import { Bar, Line } from 'react-chartjs-2';
 import {
@@ -36,10 +38,10 @@ ChartJS.register(
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(value);
 
-const CopyrightAnalysis = () => {
+const CopyrightAnalysis = ({ period }: { period: Period }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [targetYear, setTargetYear] = useState<number>(new Date().getFullYear());
+  const { vendorIndex } = useVendors();
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -54,11 +56,8 @@ const CopyrightAnalysis = () => {
   }, []);
 
   const analysisData = useMemo(() => {
-    // フィルタリング: 選択された年のデータのみ
-    const targetProjects = projects.filter((p) => {
-      const date = new Date(p.registrationDate);
-      return date.getFullYear() === targetYear;
-    });
+    // フィルタリング: 指定された期間のデータのみ
+    const targetProjects = projects.filter((p) => inPeriod(p.registrationDate, period));
 
     // 1. 作品（タイトル）別 集計
     const titleStats: Record<string, { sales: number; count: number }> = {};
@@ -83,11 +82,12 @@ const CopyrightAnalysis = () => {
       monthlyUnitPrice[monthKey].totalSales += amount;
       monthlyUnitPrice[monthKey].totalChars += p.characterCount || 1; // 0割防止
 
-      // クリエイター別
+      // クリエイター別 (外注先マスタで表記ゆれをまとめる)
       p.breakdown.forEach((b) => {
-        if (!creatorStats[b.name]) creatorStats[b.name] = { reward: 0, count: 0 };
-        creatorStats[b.name].reward += b.amount;
-        creatorStats[b.name].count += 1; // 担当回数としてカウント（厳密な納品数ではないが目安）
+        const name = vendorIndex.resolve(b.name, b.vendorId)?.name ?? b.name;
+        if (!creatorStats[name]) creatorStats[name] = { reward: 0, count: 0 };
+        creatorStats[name].reward += b.amount;
+        creatorStats[name].count += 1; // 担当回数としてカウント（厳密な納品数ではないが目安）
       });
     });
 
@@ -112,10 +112,7 @@ const CopyrightAnalysis = () => {
     };
 
     // --- 平均単価 推移 (月次) ---
-    const months = Array.from({ length: 12 }, (_, i) => {
-      const m = i + 1;
-      return `${targetYear}-${String(m).padStart(2, '0')}`;
-    });
+    const months = monthsInPeriod(period, targetProjects.map(p => p.registrationDate));
 
     const unitPriceData = months.map(m => {
       const data = monthlyUnitPrice[m];
@@ -124,7 +121,7 @@ const CopyrightAnalysis = () => {
     });
 
     const unitPriceChartData = {
-      labels: months.map(m => m.slice(5) + '月'),
+      labels: months.map(m => `${Number(m.slice(2, 4))}/${Number(m.slice(5))}`),
       datasets: [
         {
           label: '平均単価 (円/体)',
@@ -164,27 +161,18 @@ const CopyrightAnalysis = () => {
       totalSales: Object.values(titleStats).reduce((sum, t) => sum + t.sales, 0),
       totalProjects: targetProjects.length,
     };
-  }, [projects, targetYear]);
+  }, [projects, period, vendorIndex]);
 
   if (loading) return <div className="text-center p-10">分析データを読み込み中...</div>;
 
   return (
     <div className="flex flex-col gap-px bg-earth-200/60">
-      <div className="flex justify-between items-center p-4 bg-white/50 backdrop-blur-sm">
+      <div className="flex flex-wrap justify-between items-center gap-2 p-4 bg-white/50 backdrop-blur-sm">
         <div className="flex items-center space-x-4">
           <h2 className="text-xl font-bold text-earth-800">版権・プロジェクト分析レポート</h2>
-          <select
-            value={targetYear}
-            onChange={(e) => setTargetYear(Number(e.target.value))}
-            className="bg-white/40 border-white/30 rounded-md shadow-sm text-sm focus:ring-earth-500 focus:border-earth-500 text-earth-800"
-          >
-            {[2024, 2025, 2026, 2027].map(year => (
-              <option key={year} value={year}>{year}年</option>
-            ))}
-          </select>
         </div>
         <div className="text-right">
-          <p className="text-sm text-earth-500">年間総売上</p>
+          <p className="text-sm text-earth-500">期間の総売上 ({analysisData.totalProjects}件)</p>
           <p className="text-2xl font-bold text-earth-900">{formatCurrency(analysisData.totalSales)}</p>
         </div>
       </div>

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../../api/firebase';
 import ProgressBar from '../../../components/ProgressBar';
 import { useAuth } from '../../../contexts';
 
@@ -11,64 +9,28 @@ import { useOrderApprovalActions } from './hooks/useOrderApprovalActions';
 import { ApprovalHeader } from './components/ApprovalHeader';
 import { ApprovalSidebar } from './components/ApprovalSidebar';
 import { ApprovalContent } from './components/ApprovalContent';
-import type { UserPermissions } from '../../../types';
+import { useCompanySettings } from '../../../hooks/useCompanySettings';
+import { resolveStampName } from '../../../api/stampName';
 
 const OrderConfirmationApprovalPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [isStatusOpen, setIsStatusOpen] = useState(false);
 
-  const loggedInUser = useAuth();
-  // このページで承認権限をローカルに保持します
-  const [localCanWrite, setLocalCanWrite] = useState(false);
+  const { permissions } = useAuth();
+  const { settings } = useCompanySettings();
 
   const { project, client, loading, error, isVerified } = useOrderApprovalData(projectId);
   const actions = useOrderApprovalActions();
 
-  // 承認権限をFirestoreから直接取得するロジック
-  useEffect(() => {
-    const checkMasterPermission = async () => {
-      const currentUser = loggedInUser?.user;
-
-      if (currentUser && currentUser.email) {
-        // 1. マスター権限（inoue@ajiado.co.jp）は常に書き込み権限を持つ
-        if (currentUser.email === 'inoue@ajiado.co.jp') {
-          setLocalCanWrite(true);
-          return;
-        }
-
-        // 2. 一般ユーザーの場合、Firestoreから権限ドキュメントを直接取得
-        try {
-          const permDoc = await getDoc(doc(db, 'permissions', currentUser.email));
-          if (permDoc.exists()) {
-            const permissionsData = permDoc.data() as UserPermissions;
-            if (permissionsData.permissions.projects === 'write') {
-              setLocalCanWrite(true);
-              return;
-            }
-          }
-        } catch (e) {
-          console.error("Failed to fetch permissions in ApprovalPage:", e);
-        }
-      }
-      setLocalCanWrite(false);
-    };
-
-    // ユーザー認証が完了したら権限チェックを実行
-    if (loggedInUser.user) {
-      checkMasterPermission();
-    }
-
-  }, [loggedInUser.user]);
-
   useEffect(() => {
     if (project) {
-      const subName = project.title.split(/[\s　]+/).pop() || project.title;
+      const subName = project.title.split(/[\s\u3000]+/).pop() || project.title;
       document.title = `【受注伝票】${subName}`;
     }
   }, [project]);
 
-  // Headerに渡す canWrite はこのローカルな値を参照
-  const canWrite = localCanWrite;
+  // 提出できるのは管理者、またはプロジェクトの編集権限を持つ社員
+  const canWrite = !!permissions && (permissions.isAdmin === true || permissions.permissions?.projects === 'write');
 
   if (loading) {
     return (
@@ -107,12 +69,12 @@ const OrderConfirmationApprovalPage = () => {
         canWrite={canWrite}
         onToggleStatus={() => setIsStatusOpen(!isStatusOpen)}
         onSubmit={async () => {
-          const userName = loggedInUser?.user?.email ? loggedInUser.user.email.split('@')[0] : (canWrite ? 'inoue' : 'anonymous');
+          const userName = await resolveStampName(settings.approverStampName);
           await actions.submitForApproval(project, userName);
           alert("承認依頼を提出しました。");
         }}
         onApprove={async () => {
-          const userName = loggedInUser?.user?.email ? loggedInUser.user.email.split('@')[0] : (canWrite ? '小澤' : 'anonymous');
+          const userName = await resolveStampName(settings.approverStampName);
           await actions.approve(project, userName);
           alert("受注伝票を承認しました。");
         }}

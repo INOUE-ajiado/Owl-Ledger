@@ -3,6 +3,8 @@ import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../api/firebase';
 import type { ActivityLog } from '../../types';
 import { useAppOutletContext } from '../../contexts';
+import { useSearchParams } from 'react-router-dom';
+import ChangeHistoryPanel from '../history/ChangeHistoryPanel';
 import { Loader2, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 
 const getStatusStyle = (status: string) => {
@@ -18,9 +20,11 @@ const ActivityLogPage = () => {
   const { setHeaderProps } = useAppOutletContext();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'changes' ? 'changes' : 'logs';
 
   useEffect(() => {
-    setHeaderProps({ title: 'システム実行ログ', actions: undefined });
+    setHeaderProps({ title: '実行ログ・変更履歴', actions: undefined });
     
     // ログを最新のものから取得 (リアルタイムで監視)
     const q = query(collection(db, 'activityLogs'), orderBy('timestamp', 'desc'));
@@ -37,15 +41,31 @@ const ActivityLogPage = () => {
     return () => unsubscribe();
   }, [setHeaderProps]);
 
+  const tabs = (
+    <div className="flex gap-1 px-3 pt-3 border-b border-white/30 bg-white/30">
+      {([['logs', '実行ログ'], ['changes', '変更履歴 (差分)']] as const).map(([id, label]) => (
+        <button key={id} type="button" onClick={() => setSearchParams(id === 'logs' ? {} : { tab: id }, { replace: true })}
+          className={`px-4 py-2 text-sm font-medium rounded-t-md ${tab === id ? 'bg-white text-earth-900 shadow-sm' : 'text-earth-600 hover:bg-white/50'}`}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (tab === 'changes') {
+    return <div className="w-full min-h-full">{tabs}<ChangeHistoryPanel /></div>;
+  }
+
   if (loading) {
     return <div className="p-10 text-center"><Loader2 className="w-6 h-6 mx-auto mb-4 animate-spin" /> ログを読み込み中...</div>;
   }
 
   return (
     <div className="w-full min-h-full">
+      {tabs}
       <div className="px-4 py-2.5 text-sm text-yellow-800 bg-yellow-50/90 border-b border-yellow-200">
         <AlertTriangle className="inline w-4 h-4 mr-2" />
-        このログはマスターアカウントのみ閲覧可能です。機密情報を含む場合があります。
+        このログは管理者のみ閲覧可能です。機密情報を含む場合があります。
       </div>
       
       <div className="w-full min-h-full bg-white/40 backdrop-blur-sm border-b border-white/20">
