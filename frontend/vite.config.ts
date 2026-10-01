@@ -6,6 +6,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
+    // 分割後も Firebase SDK だけで約 510kB あり、これ以上は分けられないため警告の基準を上げる
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         // 大きなライブラリを別ファイルにし、ページのコードを変えてもキャッシュが効くようにする
