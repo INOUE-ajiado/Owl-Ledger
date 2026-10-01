@@ -32,7 +32,7 @@ const QuotationTemplate = ({ project, client }: QuotationTemplateProps) => {
   const unitPrice = project.characterCount > 0 ? subtotal / project.characterCount : 0;
 
   const quotationNumber = project.projectId;
-  const personInCharge = '井上 賢治';
+  const personInCharge = project.copyrightManager || '';
 
   // --- 修正箇所：納品日の表示優先ロジック ---
   // dueDate（納期）があれば優先、なければ registrationDate（登録日）を使用

@@ -52,7 +52,7 @@ const InvoiceTemplate = ({ project, client, isPersonal = false }: InvoiceTemplat
   }
   
   const invoiceNumber = project.projectId;
-  const personInCharge = '井上 賢治';
+  const personInCharge = project.copyrightManager || '';
 
   return (
     <div className="p-8 font-sans text-sm leading-snug text-gray-800 bg-white shadow-2xl print:shadow-none" style={{ width: '210mm', minHeight: '297mm' }}>

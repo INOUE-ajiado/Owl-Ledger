@@ -7,7 +7,7 @@ interface BasicInfoSectionProps {
 }
 
 export const BasicInfoSection = ({ clients, allProjects }: BasicInfoSectionProps) => {
-  const { register, watch } = useFormContext();
+  const { register, watch, formState: { errors } } = useFormContext();
   const projectType = watch('projectType');
 
   // 自分自身を親の選択肢から除外するためのフィルタリングは、
@@ -50,6 +50,15 @@ export const BasicInfoSection = ({ clients, allProjects }: BasicInfoSectionProps
               <option>完了</option>
               <option>請求済</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">版権担当者 <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              {...register("copyrightManager", { required: true, validate: (v: string) => v.trim() !== '' })}
+              className={`block w-full mt-1 rounded-md shadow-sm ${errors.copyrightManager ? 'border-red-500' : 'border-gray-300'}`}
+            />
+            {errors.copyrightManager && <p className="mt-1 text-xs text-red-600">版権担当者を入力してください</p>}
           </div>
           {projectType === 'sub' && (
             <div>

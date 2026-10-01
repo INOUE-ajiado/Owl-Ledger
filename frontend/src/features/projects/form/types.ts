@@ -10,6 +10,7 @@ export type ProjectFormValues = {
   status: '進行中' | '完了' | '請求済';
   remarks: string;
   workerName: string;
+  copyrightManager: string;
   category: string;
   masterProjectId?: string;
   gloss: number;

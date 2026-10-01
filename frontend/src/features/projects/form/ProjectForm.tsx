@@ -38,6 +38,7 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
       status: '進行中',
       remarks: '',
       workerName: '',
+      copyrightManager: '',
       category: '',
     }
   });
@@ -58,6 +59,7 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
         const projectData = {
           ...editingProject,
           projectType: editingProject.projectType || 'standard',
+          copyrightManager: editingProject.copyrightManager || '',
           taxType: editingProject.taxType || 'exclusive',
           netRate: 0, margin: '', net: '', netUnitPrice: '', negotiationFee: '',
           breakdown: editingProject.breakdown && editingProject.breakdown.length > 0 
@@ -86,6 +88,7 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
           status: '進行中',
           remarks: '',
           workerName: '',
+      copyrightManager: '',
           category: '',
           characterCount: 1,
           gloss: 0,
@@ -119,6 +122,7 @@ const ProjectForm = ({ onClose, editingProject, allProjects }: ProjectFormProps)
     const projectDataToSave = {  
       ...dataToSave,  
       clientName: selectedClient.name,
+      copyrightManager: data.copyrightManager.trim(),
       gloss: Number(data.gloss) || 0,
       allocatedAmount: Number(data.allocatedAmount) || 0,
       totalBudget: Number(data.totalBudget) || 0,

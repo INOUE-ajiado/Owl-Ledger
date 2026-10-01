@@ -44,6 +44,7 @@ export interface Project {
   dueDate?: string;
   title: string;
   workerName: string;
+  copyrightManager?: string; // 版権担当者 (見積書・請求書に印字)
   category: string;
   clientId: string;
   clientName: string;
