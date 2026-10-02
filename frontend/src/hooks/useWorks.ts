@@ -3,12 +3,13 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../api/firebase';
 import { useCollection } from './useCollection';
 import { defaultWork } from '../features/works/workMetrics';
+import { budgetSheetFor } from '../features/works/budgetSheet';
 import type { Work, WorkCost } from '../types';
 
 // 項目を追加しても古い作品が壊れないよう、初期値で欠けた項目を補う
 const withDefaults = (id: string, data: Partial<Work>): Work => {
   const base = defaultWork(data.title ?? '');
-  return { ...base, ...data, id, categoryBudgets: { ...base.categoryBudgets, ...data.categoryBudgets } };
+  return { ...base, ...data, id, budgetSheet: budgetSheetFor(data) };
 };
 
 /** 作品一覧 (タイトル順) */

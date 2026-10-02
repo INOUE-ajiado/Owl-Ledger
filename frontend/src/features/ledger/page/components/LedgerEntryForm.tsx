@@ -6,7 +6,8 @@ import axios from 'axios';
 import { useModal } from '../../../../contexts';
 import type { CostCategory, LedgerEntry, LedgerReport, LedgerSubject } from '../../../../types';
 import { useWorks } from '../../../../hooks/useWorks';
-import { COST_CATEGORIES, episodeLabel } from '../../../works/workMetrics';
+import { DEFAULT_LEDGER_CATEGORY, episodeLabel } from '../../../works/workMetrics';
+import { costSections } from '../../../works/budgetSheet';
 
 // フォームの型定義
 type LedgerFormData = Omit<LedgerEntry, 'id' | 'income' | 'expense' | 'receiptImageUrl' | 'subject' | 'workId' | 'episode' | 'costCategory'> & {
@@ -250,8 +251,8 @@ export const LedgerEntryForm = ({ currentReport, subjects, editingEntry, onSave,
                 {(selectedWork?.episodes ?? []).map(e => <option key={e.no} value={e.no}>{episodeLabel(e.no)}{e.title ? ` ${e.title}` : ''}</option>)}
               </select>
               <select {...register("costCategory")} disabled={!selectedWorkId} className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50 disabled:opacity-50" aria-label="工程">
-                <option value="">工程: 制作進行諸費</option>
-                {COST_CATEGORIES.filter(c => c.id !== 'production').map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                <option value="">工程: {(selectedWork && costSections(selectedWork).find(c => c.id === DEFAULT_LEDGER_CATEGORY)?.label) || '制作'}</option>
+                {(selectedWork ? costSections(selectedWork) : []).filter(c => c.id !== DEFAULT_LEDGER_CATEGORY).map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
           )}

@@ -277,8 +277,35 @@ export interface ChangeHistory {
 }
 // ---- 作品別収支 (works) ----
 
-// 工程別の予算枠 (プリプロ / 作画・仕上・背景・3D / 撮影・特効・編集 / 音響 / 制作進行諸費)
-export type CostCategory = 'prepro' | 'animation' | 'photography' | 'sound' | 'production';
+// 工程 = 予算表の大項目 (セクション) の ID。旧データの 'prepro' | 'animation' | 'photography' | 'sound' | 'production' も
+// 同じ ID のセクション (企画・文芸 / 作画 / 撮影 / 音響 / 制作) に集計される
+export type CostCategory = string;
+
+// 予算表の明細行 (例: 原画 / 3000×280CUT / 840,000)
+export interface BudgetLine {
+  id: string;
+  name: string;
+  calc: string;   // 積算メモ (例: 60万×16か月÷12話)。数式として読めれば金額を自動計算できる
+  amount: number;
+}
+
+// 予算表の大項目 (企画・文芸、演出、設定、作画 ...)
+export interface BudgetSection {
+  id: string;
+  name: string;
+  lines: BudgetLine[];
+}
+
+export interface BudgetSheet {
+  title: string;            // 例: 予算表案_3000万
+  createdDate: string;
+  basis: 'episode' | 'series'; // 1話あたりの予算か、シリーズ全体の予算か
+  sections: BudgetSection[];
+  managementRate: number;   // 管理費率 % (直接費合計 × 率 = 管理費 A)
+  grossManagementFee: number; // グロス管理費 B
+  targetTotal: number;      // 出資額を含む総合計額 (例: 3000万)
+  investmentRate: number;   // 出資額の率 % (総合計額 × 率)
+}
 
 export type DeliveryStatus = '未着手' | '進行中' | '納品完了' | '検収完了';
 export type MilestoneInvoiceStatus = '未起票' | '下書き' | '発行済' | '入金済';
@@ -369,7 +396,8 @@ export interface Work {
   keyDates: WorkKeyDate[];
   contracts: WorkContract[];
   milestones: WorkMilestone[];
-  categoryBudgets: Record<CostCategory, number>;
+  budgetSheet: BudgetSheet;
+  categoryBudgets?: Record<string, number>; // 旧形式 (予算表に移行済み)
   episodes: WorkEpisode[];
   licenses: LicenseDeal[];
   remarks?: string;

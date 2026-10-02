@@ -2,24 +2,17 @@ import type {
   CostCategory, DeliveryStatus, LedgerReport, LicenseDeal, Work, WorkCost, WorkMilestone,
 } from '../../types';
 import { endOfNextMonth, formatYmdDash, parseYmd } from '../../utils/money';
+import { defaultBudgetSheet, sectionSubtotal, seriesMultiplier } from './budgetSheet';
 
-export const COST_CATEGORIES: { id: CostCategory; label: string; hint: string }[] = [
-  { id: 'prepro', label: 'プリプロ', hint: '企画・脚本・設定・コンテ' },
-  { id: 'animation', label: '作画・仕上・背景・3D', hint: '社内/外注' },
-  { id: 'photography', label: '撮影・特効・編集', hint: '' },
-  { id: 'sound', label: '音響', hint: 'アフレコスタジオ代・劇伴・効果音' },
-  { id: 'production', label: '制作進行諸費', hint: '小口出納・ロケハン・車両交通費' },
-];
-
-export const CATEGORY_LABEL = Object.fromEntries(COST_CATEGORIES.map(c => [c.id, c.label])) as Record<CostCategory, string>;
+// 出納帳で工程を選ばなかった明細は「制作」(小口出納・ロケハン・交通費など) に入れる
+export const DEFAULT_LEDGER_CATEGORY = 'production';
+export const UNCATEGORIZED = '__uncategorized';
 
 export const DELIVERY_STATUSES: DeliveryStatus[] = ['未着手', '進行中', '納品完了', '検収完了'];
 
 export const episodeLabel = (no: number) => (no > 0 ? `#${String(no).padStart(2, '0')}` : '共通');
 
 export const newId = () => Math.random().toString(36).slice(2, 10);
-
-const emptyBudgets = (): Record<CostCategory, number> => ({ prepro: 0, animation: 0, photography: 0, sound: 0, production: 0 });
 
 /** 新しい作品の初期値 (分割請求の4フェーズ・全12話・重要期日の枠を用意する) */
 export const defaultWork = (title: string): Omit<Work, 'id'> => ({
@@ -40,7 +33,7 @@ export const defaultWork = (title: string): Omit<Work, 'id'> => ({
     { name: 'アフレコ/中間', deliverable: 'アフレコ完了', trigger: '検収完了' as const },
     { name: '完パケ/納品', deliverable: '本編納品', trigger: '検収完了' as const },
   ].map(m => ({ ...m, id: newId(), amount: 0, plannedDate: '', deliveryStatus: '未着手' as const, invoiceStatus: '未起票' as const })),
-  categoryBudgets: emptyBudgets(),
+  budgetSheet: defaultBudgetSheet(),
   episodes: Array.from({ length: 12 }, (_, i) => ({ no: i + 1, budget: 0 })),
   licenses: [],
   remarks: '',
@@ -118,7 +111,7 @@ export const costItemsFromLedger = (reports: LedgerReport[], workId: string): Co
   reports.flatMap(r => (r.entries ?? [])
     .filter(e => e.workId === workId)
     .map(e => ({
-      date: e.date, category: e.costCategory ?? 'production', episode: e.episode || 0,
+      date: e.date, category: e.costCategory ?? DEFAULT_LEDGER_CATEGORY, episode: e.episode || 0,
       amount: e.expense || 0, income: e.income || 0, source: 'ledger' as const,
       label: [e.payee, e.description].filter(Boolean).join(' / '), paid: true,
     })));
@@ -141,9 +134,20 @@ const toRow = <K,>(key: K, budget: number, actual: number): BudgetRow<K> => ({
   key, budget, actual, rate: budget > 0 ? actual / budget : null, status: budgetStatus(budget, actual),
 });
 
-export const categoryBreakdown = (work: Pick<Work, 'categoryBudgets'>, items: CostItem[]) =>
-  COST_CATEGORIES.map(c => toRow(c.id, work.categoryBudgets?.[c.id] || 0,
-    items.filter(i => i.category === c.id).reduce((s, i) => s + i.amount, 0)));
+/**
+ * 工程 (予算表のセクション) 別の予実。予算はシリーズ全体に換算する (1話あたりの予算表なら × 話数)。
+ * 予算表にない工程が付いた支出は「未分類」にまとめる。
+ */
+export const categoryBreakdown = (work: Pick<Work, 'budgetSheet' | 'episodes'>, items: CostItem[]) => {
+  const multiplier = seriesMultiplier(work);
+  const ids = new Set(work.budgetSheet.sections.map(s => s.id));
+  const rows = work.budgetSheet.sections.map(sec => ({
+    ...toRow(sec.id, sectionSubtotal(sec) * multiplier, items.filter(i => i.category === sec.id).reduce((s, i) => s + i.amount, 0)),
+    label: sec.name,
+  }));
+  const unmatched = items.filter(i => !ids.has(i.category)).reduce((s, i) => s + i.amount, 0);
+  return unmatched > 0 ? [...rows, { ...toRow(UNCATEGORIZED, 0, unmatched), label: '未分類' }] : rows;
+};
 
 /** 話数別の予算消化。予算未設定でもコストが付いた話数は表示する */
 export const episodeBreakdown = (work: Pick<Work, 'episodes'>, items: CostItem[]) => {

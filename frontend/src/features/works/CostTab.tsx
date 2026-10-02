@@ -4,8 +4,9 @@ import { Panel } from '../../components/DetailParts';
 import { useModal } from '../../contexts';
 import { useVendors } from '../../hooks/useMasters';
 import { formatYmdDash } from '../../utils/money';
-import type { CostCategory, WorkCost, WorkEpisode } from '../../types';
-import { CATEGORY_LABEL, categoryBreakdown, COST_CATEGORIES, episodeBreakdown, episodeLabel, type CostItem } from './workMetrics';
+import type { CostCategory, Work, WorkCost, WorkEpisode } from '../../types';
+import { categoryBreakdown, episodeBreakdown, episodeLabel, type CostItem } from './workMetrics';
+import { budgetSummary, costSections, seriesMultiplier } from './budgetSheet';
 import { deleteWorkCost, saveWorkCost } from './workApi';
 import { Badge, BudgetBar, EditActions, EmptyRow, NumberInput } from './parts';
 import { btnPrimary, btnSecondary, inputClass, replaceAt, statusLabel, statusTone, td, th, useEditable, yen } from './ui';
@@ -15,44 +16,40 @@ type CostDraft = Omit<WorkCost, 'id'>;
 
 const withoutId = ({ id: _id, ...rest }: WorkCost): CostDraft => rest; // eslint-disable-line @typescript-eslint/no-unused-vars
 
-const emptyCost = (): CostDraft => ({ date: formatYmdDash(new Date()), payee: '', description: '', category: 'animation', episode: 0, amount: 0, paid: false });
+const emptyCost = (work: Work): CostDraft => ({ date: formatYmdDash(new Date()), payee: '', description: '', category: costSections(work).find(c => c.id === 'animation')?.id ?? costSections(work)[0]?.id ?? '', episode: 0, amount: 0, paid: false });
 
-const CategoryPanel = ({ work, canWrite, onSave, items }: TabProps & { items: CostItem[] }) => {
-  const editor = useEditable(work.categoryBudgets, categoryBudgets => onSave({ categoryBudgets }));
-  const rows = categoryBreakdown({ categoryBudgets: editor.draft }, items);
+const CategoryPanel = ({ work, items, onOpenBudget }: TabProps & { items: CostItem[]; onOpenBudget: () => void }) => {
+  const rows = categoryBreakdown(work, items);
   const totalBudget = rows.reduce((s, r) => s + r.budget, 0);
   const totalActual = rows.reduce((s, r) => s + r.actual, 0);
   const grossProfit = work.contractTotal - totalActual;
+  const multiplier = seriesMultiplier(work);
 
   return (
-    <Panel title="工程別予算枠 (P/L ブレイクダウン)" actions={<EditActions editor={editor} canWrite={canWrite} />}>
+    <Panel title="工程別予算枠 (P/L ブレイクダウン)" actions={<button type="button" onClick={onOpenBudget} className={btnSecondary}>予算表で編集</button>}>
+      <p className="px-4 pt-2 text-xs text-earth-500">
+        予算は予算表の小計{multiplier > 1 ? ` × ${multiplier}話` : ''} (シリーズ全体) です。
+      </p>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="text-xs text-left text-earth-500">
             <tr><th className={th}>工程</th><th className={`${th} text-right`}>予算</th><th className={`${th} text-right`}>実績</th><th className={`${th} text-right`}>残</th><th className={`${th} w-1/4`}>消化率</th><th className={th} /></tr>
           </thead>
           <tbody className="divide-y divide-white/40 tabular-nums">
-            {rows.map(r => {
-              const category = COST_CATEGORIES.find(c => c.id === r.key)!;
-              return (
-                <tr key={r.key}>
-                  <td className={`${td} min-w-[11rem]`}><p className="font-medium text-earth-900 whitespace-nowrap">{category.label}</p>{category.hint && <p className="text-xs text-earth-500">{category.hint}</p>}</td>
-                  <td className={`${td} text-right whitespace-nowrap`}>
-                    {editor.editing
-                      ? <NumberInput value={editor.draft[r.key]} onChange={v => editor.setDraft({ ...editor.draft, [r.key]: v })} className="w-32 ml-auto" />
-                      : yen(r.budget)}
-                  </td>
-                  <td className={`${td} text-right whitespace-nowrap`}>{yen(r.actual)}</td>
-                  <td className={`${td} text-right whitespace-nowrap ${r.budget - r.actual < 0 ? 'text-red-700' : ''}`}>{yen(r.budget - r.actual)}</td>
-                  <td className={td}>
-                    <div className="flex items-center gap-2"><BudgetBar {...r} /><span className="w-12 text-xs text-right">{r.rate === null ? '—' : `${Math.round(r.rate * 100)}%`}</span></div>
-                  </td>
-                  <td className={td}><Badge tone={statusTone(r.status)}>{statusLabel(r.status)}</Badge></td>
-                </tr>
-              );
-            })}
+            {rows.map(r => (
+              <tr key={r.key}>
+                <td className={`${td} min-w-[9rem] font-medium text-earth-900 whitespace-nowrap`}>{r.label}</td>
+                <td className={`${td} text-right whitespace-nowrap`}>{yen(r.budget)}</td>
+                <td className={`${td} text-right whitespace-nowrap`}>{yen(r.actual)}</td>
+                <td className={`${td} text-right whitespace-nowrap ${r.budget - r.actual < 0 ? 'text-red-700' : ''}`}>{yen(r.budget - r.actual)}</td>
+                <td className={td}>
+                  <div className="flex items-center gap-2"><BudgetBar budget={r.budget} actual={r.actual} status={r.status} /><span className="w-12 text-xs text-right">{r.rate === null ? '—' : `${Math.round(r.rate * 100)}%`}</span></div>
+                </td>
+                <td className={td}><Badge tone={statusTone(r.status)}>{statusLabel(r.status)}</Badge></td>
+              </tr>
+            ))}
             <tr className="font-semibold bg-white/40">
-              <td className={td}>合計</td>
+              <td className={td}>直接費 合計</td>
               <td className={`${td} text-right`}>{yen(totalBudget)}</td>
               <td className={`${td} text-right`}>{yen(totalActual)}</td>
               <td className={`${td} text-right ${totalBudget - totalActual < 0 ? 'text-red-700' : ''}`}>{yen(totalBudget - totalActual)}</td>
@@ -63,8 +60,8 @@ const CategoryPanel = ({ work, canWrite, onSave, items }: TabProps & { items: Co
           </tbody>
         </table>
       </div>
-      {editor.editing && totalBudget > work.contractTotal && work.contractTotal > 0 && (
-        <p className="flex items-center gap-1.5 px-4 py-2 text-xs text-amber-700"><AlertTriangle size={14} />予算合計が契約総額 {yen(work.contractTotal)} を上回っています。</p>
+      {totalBudget > work.contractTotal && work.contractTotal > 0 && (
+        <p className="flex items-center gap-1.5 px-4 py-2 text-xs text-amber-700"><AlertTriangle size={14} />直接費の予算合計が契約総額 {yen(work.contractTotal)} を上回っています。</p>
       )}
     </Panel>
   );
@@ -93,6 +90,12 @@ const EpisodePanel = ({ work, canWrite, onSave, items }: TabProps & { items: Cos
             const first = editor.draft[0]?.budget ?? 0;
             editor.setDraft(editor.draft.map(e => ({ ...e, budget: first })));
           }}>#01 の予算を全話に適用</button>
+          {work.budgetSheet.basis === 'episode' && (
+            <button type="button" className={btnSecondary} onClick={() => {
+              const direct = budgetSummary(work.budgetSheet).direct;
+              editor.setDraft(editor.draft.map(e => ({ ...e, budget: direct })));
+            }}>予算表の直接費 ({yen(budgetSummary(work.budgetSheet).direct)}) を全話に適用</button>
+          )}
         </div>
       )}
       <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
@@ -114,7 +117,7 @@ const EpisodePanel = ({ work, canWrite, onSave, items }: TabProps & { items: Cos
                   {work.episodes[index]?.title && <p className="text-xs truncate text-earth-600">{work.episodes[index].title}</p>}
                   <p className="mt-1 text-sm font-semibold tabular-nums text-earth-900">{yen(r.actual)}</p>
                   <p className="mb-1.5 text-[11px] tabular-nums text-earth-500">予算 {yen(r.budget)}</p>
-                  <BudgetBar {...r} />
+                  <BudgetBar budget={r.budget} actual={r.actual} status={r.status} />
                 </>
               )}
             </div>
@@ -126,7 +129,7 @@ const EpisodePanel = ({ work, canWrite, onSave, items }: TabProps & { items: Cos
   );
 };
 
-const CostEditor = ({ initial, onCancel, onSubmit }: { initial: CostDraft; onCancel: () => void; onSubmit: (cost: CostDraft) => Promise<void> }) => {
+const CostEditor = ({ work, initial, onCancel, onSubmit }: { work: Work; initial: CostDraft; onCancel: () => void; onSubmit: (cost: CostDraft) => Promise<void> }) => {
   const [d, setD] = useState(initial);
   const [saving, setSaving] = useState(false);
   const { vendors } = useVendors();
@@ -151,7 +154,8 @@ const CostEditor = ({ initial, onCancel, onSubmit }: { initial: CostDraft; onCan
       <label className="col-span-2 text-xs">内容<input value={d.description} onChange={e => set({ description: e.target.value })} placeholder="原画 20カット など" className={inputClass} /></label>
       <label className="text-xs">工程
         <select value={d.category} onChange={e => set({ category: e.target.value as CostCategory })} className={inputClass}>
-          {COST_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          {costSections(work).map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          {!costSections(work).some(c => c.id === d.category) && <option value={d.category}>未分類</option>}
         </select>
       </label>
       <label className="text-xs">話数
@@ -175,6 +179,7 @@ const CostListPanel = ({ work, canWrite, costs, ledgerItems }: TabProps & { cost
   const { showModal } = useModal();
   const [editing, setEditing] = useState<WorkCost | 'new' | null>(null);
   const [episodeFilter, setEpisodeFilter] = useState<number | 'all'>('all');
+  const sectionLabel = new Map(costSections(work).map(c => [c.id, c.label]));
 
   const submit = async (cost: CostDraft) => {
     try {
@@ -217,7 +222,7 @@ const CostListPanel = ({ work, canWrite, costs, ledgerItems }: TabProps & { cost
         {canWrite && editing === null && <button type="button" onClick={() => setEditing('new')} className={btnPrimary}>原価を追加</button>}
       </div>
     }>
-      {editing === 'new' && <CostEditor initial={emptyCost()} onCancel={() => setEditing(null)} onSubmit={submit} />}
+      {editing === 'new' && <CostEditor work={work} initial={emptyCost(work)} onCancel={() => setEditing(null)} onSubmit={submit} />}
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="text-xs text-left text-earth-500">
@@ -226,12 +231,12 @@ const CostListPanel = ({ work, canWrite, costs, ledgerItems }: TabProps & { cost
           <tbody className="divide-y divide-white/40">
             {rows.length === 0 && <EmptyRow colSpan={7}>原価はまだありません。出納帳の明細も「作品」を選ぶとここに集計されます。</EmptyRow>}
             {rows.map(({ key, cost, item }) => editing !== null && editing !== 'new' && cost && editing.id === cost.id ? (
-              <tr key={key}><td colSpan={7}><CostEditor initial={withoutId(cost)} onCancel={() => setEditing(null)} onSubmit={submit} /></td></tr>
+              <tr key={key}><td colSpan={7}><CostEditor work={work} initial={withoutId(cost)} onCancel={() => setEditing(null)} onSubmit={submit} /></td></tr>
             ) : (
               <tr key={key} className="tabular-nums">
                 <td className={`${td} whitespace-nowrap`}>{item.date}</td>
                 <td className={`${td} font-mono text-xs`}>{episodeLabel(item.episode)}</td>
-                <td className={`${td} whitespace-nowrap text-earth-700`}>{CATEGORY_LABEL[item.category]}</td>
+                <td className={`${td} whitespace-nowrap text-earth-700`}>{sectionLabel.get(item.category) ?? '未分類'}</td>
                 <td className={`${td} text-earth-800`}>{item.label || '—'}</td>
                 <td className={`${td} text-right whitespace-nowrap`}>{yen(item.amount)}</td>
                 <td className={td}>{item.source === 'ledger' ? <Badge tone="earth">出納帳</Badge> : item.paid ? <Badge tone="green">支払済</Badge> : <Badge tone="yellow">支払予定</Badge>}</td>
@@ -253,7 +258,7 @@ const CostListPanel = ({ work, canWrite, costs, ledgerItems }: TabProps & { cost
 };
 
 /** 話数・工程別の原価予実 (出納・支払連動) */
-const CostTab = (props: TabProps & { costs: WorkCost[]; items: CostItem[]; ledgerItems: CostItem[] }) => (
+const CostTab = (props: TabProps & { costs: WorkCost[]; items: CostItem[]; ledgerItems: CostItem[]; onOpenBudget: () => void }) => (
   <div className="space-y-4">
     <CategoryPanel {...props} />
     <EpisodePanel {...props} />

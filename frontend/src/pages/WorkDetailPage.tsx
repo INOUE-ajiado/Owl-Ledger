@@ -13,10 +13,12 @@ import BillingTab from '../features/works/BillingTab';
 import CostTab from '../features/works/CostTab';
 import LicenseTab from '../features/works/LicenseTab';
 import CashTab from '../features/works/CashTab';
+import BudgetTab from '../features/works/BudgetTab';
 import type { LedgerReport, Work } from '../types';
 
 const TABS = [
   { id: 'billing', label: '資金回収・マイルストーン' },
+  { id: 'budget', label: '予算表' },
   { id: 'cost', label: '原価予実' },
   { id: 'license', label: 'ライセンス・二次利用' },
   { id: 'cash', label: 'キャッシュギャップ' },
@@ -118,7 +120,8 @@ const WorkDetailPage = () => {
         <div className="pt-4">
           {tab === 'overview' && <OverviewTab work={work} canWrite={canWrite} onSave={onSave} />}
           {tab === 'billing' && <BillingTab work={work} canWrite={canWrite} onSave={onSave} />}
-          {tab === 'cost' && <CostTab work={work} canWrite={canWrite} onSave={onSave} costs={costs} items={items} ledgerItems={ledgerItems} />}
+          {tab === 'cost' && <CostTab work={work} canWrite={canWrite} onSave={onSave} costs={costs} items={items} ledgerItems={ledgerItems} onOpenBudget={() => setSearchParams({ tab: 'budget' }, { replace: true })} />}
+          {tab === 'budget' && <BudgetTab work={work} canWrite={canWrite} onSave={onSave} />}
           {tab === 'license' && <LicenseTab work={work} canWrite={canWrite} onSave={onSave} />}
           {tab === 'cash' && <CashTab flow={flow} openingBalance={work.openingBalance} />}
         </div>

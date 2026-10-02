@@ -3,6 +3,7 @@ import {
   applyDeliveryStatus, billingSummary, cashFlow, categoryBreakdown, costItemsFromLedger, daysUntil,
   defaultWork, episodeBreakdown, licenseSummary, type CostItem,
 } from './workMetrics';
+import { defaultBudgetSheet } from './budgetSheet';
 import type { LedgerReport, LicenseDeal, WorkMilestone } from '../../types';
 
 const today = new Date(2026, 9, 2);
@@ -62,9 +63,18 @@ describe('billingSummary', () => {
 describe('予実', () => {
   test('工程別・話数別に消化額と予算超過を判定する', () => {
     const items = [item({ category: 'animation', episode: 3, amount: 950 }), item({ category: 'sound', episode: 7, amount: 1200 })];
-    const categories = categoryBreakdown({ categoryBudgets: { prepro: 0, animation: 1000, photography: 0, sound: 1000, production: 0 } }, items);
-    expect(categories.find(r => r.key === 'animation')).toMatchObject({ actual: 950, status: 'warn' });
+    const budgetSheet = { ...defaultBudgetSheet(), basis: 'series' as const, sections: [
+      { id: 'animation', name: '作画', lines: [{ id: 'a', name: '原画', calc: '', amount: 1000 }] },
+      { id: 'sound', name: '音響', lines: [{ id: 'b', name: 'スタジオ', calc: '', amount: 1000 }] },
+    ] };
+    const categories = categoryBreakdown({ budgetSheet, episodes: [] }, [...items, item({ category: 'gone', amount: 5 })]);
+    expect(categories.find(r => r.key === 'animation')).toMatchObject({ actual: 950, status: 'warn', label: '作画' });
     expect(categories.find(r => r.key === 'sound')).toMatchObject({ actual: 1200, status: 'over' });
+    expect(categories.at(-1)).toMatchObject({ label: '未分類', actual: 5 });
+
+    // 1話あたりの予算表は話数倍してシリーズの予算にする
+    const perEpisode = categoryBreakdown({ budgetSheet: { ...budgetSheet, basis: 'episode' }, episodes: [{ no: 1, budget: 0 }, { no: 2, budget: 0 }] }, items);
+    expect(perEpisode.find(r => r.key === 'animation')?.budget).toBe(2000);
 
     const episodes = episodeBreakdown({ episodes: [{ no: 3, budget: 1000 }] }, items);
     expect(episodes.map(r => [r.key, r.status])).toEqual([[3, 'warn'], [7, 'over']]);

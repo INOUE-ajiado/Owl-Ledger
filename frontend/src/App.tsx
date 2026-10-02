@@ -26,6 +26,7 @@ const LedgerPage = lazy(() => import('./features/ledger/page/LedgerPage'));
 const LedgerSearchPage = lazy(() => import('./features/ledger/search/LedgerSearchPage'));
 const OrderConfirmationApprovalPage = lazy(() => import('./features/projects/approval/OrderConfirmationApprovalPage'));
 const PersonalInvoicePrintPage = lazy(() => import('./features/printing/PersonalInvoicePrintPage'));
+const WorkBudgetPrintPage = lazy(() => import('./features/works/WorkBudgetPrintPage'));
 const PersonalReceiptPrintPage = lazy(() => import('./features/printing/PersonalReceiptPrintPage'));
 const LedgerApprovalPage = lazy(() => import('./features/ledger/approval/LedgerApprovalPage'));
 const ActivityLogPage = lazy(() => import('./features/admin/ActivityLogPage'));
@@ -214,6 +215,8 @@ function App() {
             {/* カスタム印刷ルート (個人請求書/領収書) - 汎用パスより先に定義 */}
             <Route path="/print/personal-invoice/:projectId" element={<PersonalInvoicePrintPage />} />
             <Route path="/print/personal-receipt/:projectId" element={<PersonalReceiptPrintPage />} />
+            {/* 作品の予算表 (社員のみ。データの読み取りはルールで社員に限定) */}
+            <Route path="/print/work-budget/:workId" element={user ? <WorkBudgetPrintPage /> : <Navigate to="/login" />} />
 
             {/* 汎用印刷ルート (見積書、請求書、赤伝、発注書など) - カスタムパスの後に定義 */}
             <Route path="/print/:docType/:projectId" element={<PrintHostPage />} />
