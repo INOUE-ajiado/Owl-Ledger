@@ -16,6 +16,8 @@ const ClientDetailPage = lazy(() => import('./pages/ClientDetailPage'));
 const VendorPage = lazy(() => import('./pages/VendorPage'));
 const VendorDetailPage = lazy(() => import('./pages/VendorDetailPage'));
 const ProjectPage = lazy(() => import('./pages/ProjectPage'));
+const WorkPage = lazy(() => import('./pages/WorkPage'));
+const WorkDetailPage = lazy(() => import('./pages/WorkDetailPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const PermissionsPage = lazy(() => import('./pages/PermissionsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
@@ -185,6 +187,9 @@ function App() {
               {permissions?.permissions?.dashboard !== 'disabled' && <Route path="dashboard" element={<DashboardPage />} />}
               {/* 同じページのままドロワーを開閉できるよう、プロジェクトIDは省略可能なパラメータにする */}
               {permissions?.permissions?.projects !== 'disabled' && <Route path="projects/:projectId?" element={<ProjectPage />} />}
+              {/* 作品別収支 (アニメ作品ごとのプロデュース管理)。プロジェクトの画面権限に従う */}
+              {permissions?.permissions?.projects !== 'disabled' && <Route path="works" element={<WorkPage />} />}
+              {permissions?.permissions?.projects !== 'disabled' && <Route path="works/:workId" element={<WorkDetailPage />} />}
               {permissions?.permissions?.clients !== 'disabled' && <Route path="clients" element={<ClientPage />} />}
               {permissions?.permissions?.clients !== 'disabled' && <Route path="clients/:clientId" element={<ClientDetailPage />} />}
               {permissions?.permissions?.clients !== 'disabled' && <Route path="vendors" element={<VendorPage />} />}

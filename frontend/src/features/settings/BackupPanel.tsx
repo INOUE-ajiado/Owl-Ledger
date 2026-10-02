@@ -14,7 +14,7 @@ const BackupPanel = () => {
     setProgress('準備中');
     try {
       const backup = await buildBackup(setProgress);
-      const count = Object.values(backup.collections).reduce((sum, docs) => sum + Object.keys(docs).length, 0) + Object.keys(backup.purchaseOrders).length;
+      const count = Object.values(backup.collections).reduce((sum, docs) => sum + Object.keys(docs).length, 0) + Object.keys(backup.purchaseOrders).length + Object.keys(backup.workCosts ?? {}).length;
       downloadJson(backup, `owl-ledger-backup_${formatYmdDash(new Date())}.json`);
       await recordLog({ action: 'EXPORT_BACKUP', targetType: 'system', targetId: 'backup', summary: `全データをバックアップ出力 (${count}件)`, status: 'success' });
     } catch (error) {

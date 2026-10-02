@@ -4,10 +4,15 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage, auth } from '../../../../api/firebase';
 import axios from 'axios';
 import { useModal } from '../../../../contexts';
-import type { LedgerEntry, LedgerReport, LedgerSubject } from '../../../../types';
+import type { CostCategory, LedgerEntry, LedgerReport, LedgerSubject } from '../../../../types';
+import { useWorks } from '../../../../hooks/useWorks';
+import { COST_CATEGORIES, episodeLabel } from '../../../works/workMetrics';
 
 // フォームの型定義
-type LedgerFormData = Omit<LedgerEntry, 'id' | 'income' | 'expense' | 'receiptImageUrl' | 'subject'> & {
+type LedgerFormData = Omit<LedgerEntry, 'id' | 'income' | 'expense' | 'receiptImageUrl' | 'subject' | 'workId' | 'episode' | 'costCategory'> & {
+  workId: string;
+  episode: string;
+  costCategory: CostCategory | '';
   income: number | '';
   expense: number | '';
   subject: { value: string }[];
@@ -36,6 +41,8 @@ const FormProgressBar = () => (
 
 export const LedgerEntryForm = ({ currentReport, subjects, editingEntry, onSave, onCancelEdit, isLocked }: LedgerEntryFormProps) => {
   const { showModal } = useModal();
+  // 作品別収支への紐付け (作品が登録されているときだけ表示)
+  const { works } = useWorks();
   const [isOcrLoading, setIsOcrLoading] = useState(false);
   const [ocrPreviewUrl, setOcrPreviewUrl] = useState<string | null>(null);
   const [receiptUrlToSave, setReceiptUrlToSave] = useState<string | null>(null);
@@ -46,13 +53,15 @@ export const LedgerEntryForm = ({ currentReport, subjects, editingEntry, onSave,
   const fileInputRef = useRef<HTMLInputElement>(null);
   const manualFileInputRef = useRef<HTMLInputElement>(null);
 
-  const { register, handleSubmit, reset, setValue, control } = useForm<LedgerFormData>({
-    defaultValues: { subject: [{ value: "" }] }
+  const { register, handleSubmit, reset, setValue, control, watch } = useForm<LedgerFormData>({
+    defaultValues: { subject: [{ value: "" }], workId: '', episode: '', costCategory: '' }
   });
+  const selectedWorkId = watch('workId');
+  const selectedWork = works.find(w => w.id === selectedWorkId);
   const { fields: subjectFields, append: appendSubject, remove: removeSubject } = useFieldArray({ control, name: "subject" });
 
   const resetFormState = useCallback(() => {
-    reset({ date: '', subject: [{ value: "" }], description: '', payee: '', income: '', expense: '' });
+    reset({ date: '', subject: [{ value: "" }], description: '', payee: '', income: '', expense: '', workId: '', episode: '', costCategory: '' });
     setOcrPreviewUrl(null);
     setReceiptUrlToSave(null);
     setManualFileName(null);
@@ -67,6 +76,9 @@ export const LedgerEntryForm = ({ currentReport, subjects, editingEntry, onSave,
       setValue('payee', editingEntry.payee);
       setValue('income', editingEntry.income || '');
       setValue('expense', editingEntry.expense || '');
+      setValue('workId', editingEntry.workId ?? '');
+      setValue('episode', editingEntry.episode ? String(editingEntry.episode) : '');
+      setValue('costCategory', editingEntry.costCategory ?? '');
 
       const subjectsForForm = Array.isArray(editingEntry.subject)
         ? editingEntry.subject.map((s: string) => ({ value: s }))
@@ -159,7 +171,12 @@ export const LedgerEntryForm = ({ currentReport, subjects, editingEntry, onSave,
       income: Number(data.income) || 0,
       expense: Number(data.expense) || 0,
       // undefinedを避けるため、値がある場合のみプロパティを設定
-      ...(receiptUrlToSave ? { receiptImageUrl: receiptUrlToSave } : {})
+      ...(receiptUrlToSave ? { receiptImageUrl: receiptUrlToSave } : {}),
+      ...(data.workId ? {
+        workId: data.workId,
+        ...(Number(data.episode) > 0 ? { episode: Number(data.episode) } : {}),
+        ...(data.costCategory ? { costCategory: data.costCategory } : {}),
+      } : {}),
     };
 
     await onSave(entryData);
@@ -222,6 +239,22 @@ export const LedgerEntryForm = ({ currentReport, subjects, editingEntry, onSave,
           <div className="col-span-2 md:col-span-6">
             <input {...register("payee")} placeholder="支払い先" className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50" />
           </div>
+          {works.length > 0 && (
+            <div className="grid grid-cols-3 col-span-2 gap-2 md:col-span-6">
+              <select {...register("workId")} className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50" aria-label="作品">
+                <option value="">作品 (任意)</option>
+                {works.map(w => <option key={w.id} value={w.id}>{w.title}</option>)}
+              </select>
+              <select {...register("episode")} disabled={!selectedWorkId} className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50 disabled:opacity-50" aria-label="話数">
+                <option value="">話数: 共通</option>
+                {(selectedWork?.episodes ?? []).map(e => <option key={e.no} value={e.no}>{episodeLabel(e.no)}{e.title ? ` ${e.title}` : ''}</option>)}
+              </select>
+              <select {...register("costCategory")} disabled={!selectedWorkId} className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50 disabled:opacity-50" aria-label="工程">
+                <option value="">工程: 制作進行諸費</option>
+                {COST_CATEGORIES.filter(c => c.id !== 'production').map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </div>
+          )}
           <div className="md:col-span-3">
             <input type="number" {...register("income", { valueAsNumber: true })} placeholder="入金額" className="py-1.5 px-2.5 text-sm border rounded w-full bg-gray-50" />
           </div>

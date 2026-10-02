@@ -13,6 +13,7 @@ import {
   Truck,
   FileSearch,
   Settings,
+  Clapperboard,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -41,6 +42,7 @@ const Sidebar = ({ activeView, setView, permissions }: SidebarProps) => {
   // area: 表示に必要な画面権限 / admin: 管理者のみ
   const allNavItems: { id: ViewType; label: string; icon: typeof ClipboardList; area?: keyof PermissionSet; admin?: boolean }[] = [
     { id: 'projects', label: 'プロジェクト一覧', icon: ClipboardList, area: 'projects' },
+    { id: 'works', label: '作品別収支', icon: Clapperboard, area: 'projects' },
     { id: 'clients', label: 'クライアント管理', icon: Users, area: 'clients' },
     { id: 'vendors', label: '外注先管理', icon: Truck, area: 'clients' },
     { id: 'ledger', label: '出納帳', icon: BookText, area: 'ledger' },

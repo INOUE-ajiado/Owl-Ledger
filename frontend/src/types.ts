@@ -124,6 +124,10 @@ export interface LedgerEntry {
   income: number;
   expense: number;
   receiptImageUrl?: string;
+  // 作品別収支への紐付け (任意)
+  workId?: string;
+  episode?: number;        // 話数 (0 または未設定は作品共通)
+  costCategory?: CostCategory;
 }
 
 export interface LedgerReport {
@@ -197,7 +201,7 @@ export interface ActivityLog {
   status: 'success' | 'error' | 'info';
 }
 
-export type ViewType = 'dashboard' | 'projects' | 'clients' | 'vendors' | 'ledger' | 'ledger-search' | 'permissions' | 'logs' | 'settings';
+export type ViewType = 'dashboard' | 'projects' | 'works' | 'clients' | 'vendors' | 'ledger' | 'ledger-search' | 'permissions' | 'logs' | 'settings';
 
 // 会社設定 (settings/company)。帳票の発行元・振込先・税率などをコードに書かず管理する
 export interface CompanySettings {
@@ -265,9 +269,122 @@ export interface ChangeHistory {
   timestamp: { seconds: number; nanoseconds: number; };
   userEmail: string;
   userId: string;
-  targetType: 'project' | 'client' | 'vendor' | 'ledger' | 'settings' | 'staff' | 'permissions' | 'invoice';
+  targetType: 'project' | 'client' | 'vendor' | 'ledger' | 'settings' | 'staff' | 'permissions' | 'invoice' | 'work';
   targetId: string;
   targetLabel: string;
   action: 'create' | 'update' | 'delete';
   changes: FieldChange[];
+}
+// ---- 作品別収支 (works) ----
+
+// 工程別の予算枠 (プリプロ / 作画・仕上・背景・3D / 撮影・特効・編集 / 音響 / 制作進行諸費)
+export type CostCategory = 'prepro' | 'animation' | 'photography' | 'sound' | 'production';
+
+export type DeliveryStatus = '未着手' | '進行中' | '納品完了' | '検収完了';
+export type MilestoneInvoiceStatus = '未起票' | '下書き' | '発行済' | '入金済';
+
+// 分割請求の節目 (契約時・コンテ/設定UP・アフレコ/中間・完パケ/納品 など)
+export interface WorkMilestone {
+  id: string;
+  name: string;
+  deliverable: string;       // 納品物 (例: 本編納品)
+  amount: number;            // 請求額 (税抜)
+  plannedDate: string;       // 節目の予定日
+  deliveryStatus: DeliveryStatus;
+  trigger: '納品完了' | '検収完了'; // この状態になったら請求書の下書きを起票する
+  invoiceStatus: MilestoneInvoiceStatus;
+  invoiceNumber?: string;
+  issueDate?: string;
+  dueDate?: string;          // 入金予定日
+  paidDate?: string;         // 入金 (消込) 日
+}
+
+export interface WorkEpisode {
+  no: number;     // #1, #2 ...
+  title?: string;
+  budget: number;
+}
+
+export type LicenseChannel = '国内配信' | '海外配給' | 'パッケージ' | '商品化' | 'イベント' | 'タイアップ' | 'その他';
+export type SupervisionStatus = '対象外' | '未着手' | '監修中' | '修正依頼' | '監修OK';
+
+// ロイヤリティ報告 (期ごと): 報告書の受領 → 請求 → 入金確認
+export interface RoyaltyReport {
+  id: string;
+  period: string;     // 対象期間 (例: 2026年4-6月)
+  dueDate: string;    // 報告期日
+  amount: number;     // 報告されたロイヤリティ額
+  received: boolean;  // 報告書受領
+  invoiced: boolean;
+  paid: boolean;
+  paidDate?: string;
+}
+
+export interface LicenseDeal {
+  id: string;
+  channel: LicenseChannel;
+  licensee: string;    // 許諾先・窓口
+  title: string;       // 案件名・商品名
+  mg: number;          // ミニマムギャランティ (前受金)
+  mgDueDate?: string;
+  mgPaid: boolean;
+  royaltyRate?: number; // %
+  termStart?: string;
+  termEnd?: string;
+  supervision: SupervisionStatus;
+  supervisionInvoiced: boolean; // 監修OKで請求済み
+  reports: RoyaltyReport[];
+  remarks?: string;
+}
+
+export interface CommitteeMember {
+  name: string;
+  ratio: number; // 出資比率 %
+}
+
+export interface WorkKeyDate {
+  label: string;
+  date: string;
+}
+
+export interface WorkContract {
+  id: string;
+  name: string;  // 製作受託契約書 など
+  url: string;   // 契約書ファイルへのリンク (Google Drive など)
+  signedDate?: string;
+  renewalDate?: string;
+}
+
+export interface Work {
+  id: string;
+  title: string;
+  status: '企画' | '制作中' | '放送・配信中' | '完了';
+  client: string;             // 発注元 (製作委員会・幹事会社など)
+  contractTotal: number;      // 制作受託の契約総額 (税抜)
+  openingBalance: number;     // 作品に充てる手元資金 (キャッシュギャップの起点)
+  originalWork: string;       // 原作
+  publisher: string;          // 出版社
+  committee: CommitteeMember[];
+  ownShare: number;           // 自社の権利比率 %
+  keyDates: WorkKeyDate[];
+  contracts: WorkContract[];
+  milestones: WorkMilestone[];
+  categoryBudgets: Record<CostCategory, number>;
+  episodes: WorkEpisode[];
+  licenses: LicenseDeal[];
+  remarks?: string;
+  createdAt?: { seconds: number; nanoseconds: number; };
+}
+
+// 作品の原価 (外注請求書・支払予定)。works/{workId}/costs
+export interface WorkCost {
+  id: string;
+  date: string;          // 支払日 (予定)
+  payee: string;
+  description: string;
+  category: CostCategory;
+  episode: number;       // 0 は作品共通
+  amount: number;        // 税抜
+  paid: boolean;
+  vendorId?: string;
 }

@@ -110,7 +110,7 @@ const LedgerList = ({ report, onAttachFile, isLocked, onEdit, onDelete, editingE
               <tr key={entry.id} className={`transition-colors ${entry.id === editingEntryId ? 'bg-indigo-50' : 'hover:bg-earth-50/60'}`}>
                 <td className="px-3 py-2 whitespace-nowrap tabular-nums text-earth-700" title={entry.date}>{formatDate(entry.date)}</td>
                 <td className="px-3 py-2 whitespace-pre-line text-earth-800">{subjectText(entry)}</td>
-                <td className="px-3 py-2 whitespace-pre-line">{entry.description}</td>
+                <td className="px-3 py-2 whitespace-pre-line">{entry.description}{entry.workId && <span className="ml-1.5 px-1.5 py-px font-mono text-[10px] rounded bg-earth-100 text-earth-700 align-middle">{entry.episode ? `#${String(entry.episode).padStart(2, '0')}` : '作品'}</span>}</td>
                 <td className="px-3 py-2 text-earth-700">{entry.payee}</td>
                 <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap text-blue-700">{Number(entry.income) > 0 ? Number(entry.income).toLocaleString() : ''}</td>
                 <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap text-red-700">{Number(entry.expense) > 0 ? Number(entry.expense).toLocaleString() : ''}</td>
@@ -139,7 +139,7 @@ const LedgerList = ({ report, onAttachFile, isLocked, onEdit, onDelete, editingE
                   {formatDate(entry.date)}
                   <span className="ml-2 text-earth-700">{subjectText(entry).replace(/\n/g, ' / ')}</span>
                 </p>
-                <p className="mt-0.5 text-sm text-earth-900 whitespace-pre-line break-words">{entry.description}</p>
+                <p className="mt-0.5 text-sm text-earth-900 whitespace-pre-line break-words">{entry.description}{entry.workId && <span className="ml-1.5 px-1.5 py-px font-mono text-[10px] rounded bg-earth-100 text-earth-700 align-middle">{entry.episode ? `#${String(entry.episode).padStart(2, '0')}` : '作品'}</span>}</p>
                 {entry.payee && <p className="text-xs text-earth-500 truncate">{entry.payee}</p>}
               </div>
               <div className="text-right flex-shrink-0 tabular-nums">

@@ -92,6 +92,8 @@ beforeEach(async () => {
     await setDoc(doc(db, 'ledgerSubjects', 's1'), { name: '交通費' });
     await setDoc(doc(db, 'notifications', 'n1'), { userId: 'staff-uid', message: 'm', link: '/approval/r1', isRead: false });
     await setDoc(doc(db, 'activityLogs', 'l1'), log('staff-uid', STAFF));
+    await setDoc(doc(db, 'works', 'w1'), { title: 'アニメ作品', contractTotal: 1000, milestones: [] });
+    await setDoc(doc(db, 'works', 'w1', 'costs', 'c1'), { date: '2026-10-01', amount: 100, category: 'animation', episode: 3 });
     const storage = ctx.storage();
     await uploadBytes(ref(storage, 'receipt-images/admin-uid/a.jpg'), new Uint8Array([1, 2, 3]), { contentType: 'image/jpeg' });
   });
@@ -370,6 +372,40 @@ describe('未ログイン', () => {
     await assertFails(getDoc(doc(db, 'permissions', ADMIN)));
     await assertFails(getDoc(doc(db, 'projects', 'p1')));
     await assertFails(getDoc(doc(db, 'ledgerReports', 'r1')));
+  });
+});
+
+describe('作品別収支 (works)', () => {
+  test('社員は作品と原価明細を読み書きできる (作品の削除は管理者のみ)', async () => {
+    const db = as.staff();
+    await assertSucceeds(getDocs(collection(db, 'works')));
+    await assertSucceeds(addDoc(collection(db, 'works'), { title: '新作' }));
+    await assertSucceeds(updateDoc(doc(db, 'works', 'w1'), { contractTotal: 2000 }));
+    await assertSucceeds(addDoc(collection(db, 'works', 'w1', 'costs'), { amount: 1 }));
+    await assertSucceeds(deleteDoc(doc(db, 'works', 'w1', 'costs', 'c1')));
+    await assertFails(deleteDoc(doc(db, 'works', 'w1')));
+    await assertSucceeds(deleteDoc(doc(as.admin(), 'works', 'w1')));
+  });
+  test('プロジェクトが閲覧のみの社員は参照だけできる (出納帳で作品を選ぶため)', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'permissions', LEDGER_READONLY), { permissions: { ...ALL_WRITE, projects: 'read' } });
+    });
+    const db = as.ledgerReadonly();
+    await assertSucceeds(getDoc(doc(db, 'works', 'w1')));
+    await assertSucceeds(getDocs(collection(db, 'works', 'w1', 'costs')));
+    await assertFails(updateDoc(doc(db, 'works', 'w1'), { contractTotal: 0 }));
+    await assertFails(addDoc(collection(db, 'works', 'w1', 'costs'), { amount: 1 }));
+  });
+  test('バックアップ用に社員は全作品の原価明細をまとめて読める', async () => {
+    await assertSucceeds(getDocs(collectionGroup(as.staff(), 'costs')));
+    await assertFails(getDocs(collectionGroup(as.anon(), 'costs')));
+  });
+  test('匿名・未登録ユーザーは読み書きできない', async () => {
+    for (const db of [as.anon(), as.outsider(), as.nobody()]) {
+      await assertFails(getDoc(doc(db, 'works', 'w1')));
+      await assertFails(getDocs(collection(db, 'works', 'w1', 'costs')));
+      await assertFails(updateDoc(doc(db, 'works', 'w1'), { contractTotal: 0 }));
+    }
   });
 });
 

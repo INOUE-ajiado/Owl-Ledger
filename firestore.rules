@@ -203,6 +203,24 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // 13. 作品別収支 (works)。出納帳から作品・話数を選ぶため、社員は参照可
+    match /works/{workId} {
+      allow read: if isStaff();
+      allow create, update: if isAdmin() || canWrite('projects');
+      allow delete: if isAdmin();
+
+      // 原価明細 (外注請求書・支払予定)
+      match /costs/{costId} {
+        allow read: if isStaff();
+        allow write: if isAdmin() || canWrite('projects');
+      }
+    }
+
+    // バックアップ用に、全作品の原価明細をまとめて読む (社員のみ)
+    match /{path=**}/costs/{costId} {
+      allow read: if isStaff();
+    }
+
     // 7. 通知 (notifications)
     match /notifications/{notificationId} {
       allow read, delete: if isSignedIn() && request.auth.uid == resource.data.userId;
